@@ -22,15 +22,19 @@ import java.util.function.Predicate;
 /** Reusable building blocks for tasks: walk-then-break, walk-then-place, walk-then-click, pick up drops. */
 public final class Do {
 	public static final double REACH = 4.2;
+	private static int blindTicks;
 
 	private Do() {}
 
 	/** Walk until pos is in reach AND in plain sight (no reaching through walls). OK when there. */
 	public static S reach(Bot b, BlockPos pos, boolean dig) {
 		if (Breaker.canSee(pos)) {
+			blindTicks = 0;
 			if (b.nav.pathing()) b.nav.reset();
 			return S.OK;
 		}
+		// a leaf or a jump can hide it for a tick: don't abandon a break in progress over that
+		if (++blindTicks < 10 && Act.inReach(pos, REACH) && !b.nav.pathing()) return S.RUN;
 		S s = b.nav.goTo(new Goal.Reach(pos, REACH), dig);
 		// standing right next to it and still no line of sight: give up on this one, don't loop
 		return s == S.OK ? S.FAIL : s;

@@ -38,6 +38,7 @@ public final class Bot {
 		running = true;
 		task = null;
 		nav.reset();
+		breaker.reset();
 		mc.options.pauseOnLostFocus = false;
 		Bari.configure();
 		Compat.localMessage("[FarmBot] farm farm farm. started." + (state.hasSite ? " returning to farm at " + Farm.home().toShortString() : " looking for untouched land..."));
@@ -48,6 +49,7 @@ public final class Bot {
 		if (task != null && p != null) task.stop(this);
 		task = null;
 		nav.reset();
+		breaker.reset();
 		Bari.cancel();
 		if (mc != null) {
 			Ctl.releaseAll(mc);

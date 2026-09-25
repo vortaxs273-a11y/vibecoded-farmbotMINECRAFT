@@ -30,7 +30,6 @@ public final class Nav {
 		fails = 0;
 		idle = 0;
 		debug = "";
-		breaker.reset();
 	}
 
 	/** Let go of Baritone (safety takes over) without disturbing a break in progress. */
