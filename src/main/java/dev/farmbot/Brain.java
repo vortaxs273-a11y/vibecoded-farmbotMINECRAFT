@@ -51,7 +51,7 @@ public final class Brain {
 	public void failed(Task t, Bot b) {
 		String k = keys.remove(t);
 		FarmBotClient.LOG.info("[farmbot] task failed: {} ({})", t.name(), t.why);
-		if (k != null) cooldown.put(k, b.tick + (k.startsWith("mine:") || k.startsWith("hunt") ? 20 * 120 : 20 * 45));
+		if (k != null) cooldown.put(k, b.tick + (k.equals("mine:seeds") ? 20 * 15 : k.startsWith("mine:") || k.startsWith("hunt") ? 20 * 120 : 20 * 45));
 		if (t instanceof StoreTask && t.why.contains("no chest")) needChest = true;
 		if (t instanceof PlaceTask pt && pt.item == Res.CHEST) {
 			b.state.badSpots.add(pt.pos.asLong());
@@ -92,7 +92,13 @@ public final class Brain {
 		if ((t = home(b)) != null) return t;
 		if ((t = farm(b)) != null) return t;
 		if ((t = chores(b)) != null) return t;
-		return new IdleTask(20 * 20);
+		// nothing urgent: stockpile seeds for the next plots instead of standing around
+		blocked = false;
+		if (Inv.count(Res.SEEDS) < 256) {
+			Task s = seeds(b, 32);
+			if (s != null) return s;
+		}
+		return new IdleTask(20 * 5);
 	}
 
 	private Task food(Bot b) {
@@ -242,7 +248,14 @@ public final class Brain {
 				return t;
 			}
 		}
-		if (sv[0] >= 10 || (sv[1] >= 6 && seeds > 0) || sv[2] >= 6) return make("farm", FarmTask::new);
+		// never wait around: plant every empty tile, harvest everything ripe, re-till trampled soil
+		if (sv[0] > 0 || (sv[1] > 0 && seeds > 0) || (sv[2] > 0 && has(st -> st.is(ItemTags.HOES)))) {
+			if ((t = make("farm", FarmTask::new)) != null) return t;
+		}
+		// bare farmland and no seeds: go pull grass until every tile can be planted
+		if (sv[1] > 0 && seeds == 0) {
+			if ((t = seeds(b, Math.min(64, sv[1]))) != null) return t;
+		}
 
 		if (!has(s -> s.is(ItemTags.HOES)) && (t = step(() -> obtain(b, Res.STONE_HOE, 1, 0))) != null) return t;
 
@@ -257,12 +270,8 @@ public final class Brain {
 				b.state.setCell(c[0], c[1], FarmState.SKIPPED);
 				continue;
 			}
-			if (seeds < 24) {
-				if (sv[0] > 0) return make("farm", FarmTask::new);
-				t = step(() -> obtain(b, Res.SEEDS, 40, 0));
-				if (t != null) return t;
-				break;
-			}
+			// build even with few seeds: water + tilled soil is ready the moment seeds come in
+			if (seeds == 0 && (t = seeds(b, 16)) != null) return t;
 			String key = "cell:" + c[0] + "," + c[1];
 			if (cooling(key)) {
 				// failed twice here recently; give up on this plot for good
@@ -271,8 +280,15 @@ public final class Brain {
 			}
 			return make(key, () -> new BuildCellTask(b, c[0], c[1]));
 		}
-		if (sv[0] > 0 || (sv[1] > 0 && seeds > 0)) return make("farm", FarmTask::new);
 		return null;
+	}
+
+	/** Seed gathering in short bursts (never one giant task that times out). */
+	private Task seeds(Bot b, int more) {
+		int want = Inv.count(Res.SEEDS) + Math.max(8, more);
+		return make("mine:seeds", () -> new MineTask("pulling grass for seeds",
+			s -> s.is(Blocks.SHORT_GRASS) || s.is(Blocks.TALL_GRASS) || s.is(Blocks.FERN) || s.is(Blocks.LARGE_FERN),
+			Res.SEEDS.pred, want, 6, 8, 8, false, 5).partialOk());
 	}
 
 	private Task chores(Bot b) {
@@ -367,9 +383,7 @@ public final class Brain {
 				return make("flint", FlintTask::new);
 			}
 			case SEEDS -> {
-				return make("mine:seeds", () -> new MineTask("pulling grass for seeds",
-					s -> s.is(Blocks.SHORT_GRASS) || s.is(Blocks.TALL_GRASS) || s.is(Blocks.FERN) || s.is(Blocks.LARGE_FERN),
-					Res.SEEDS.pred, n, 5, 8, 8, false, 5));
+				return seeds(b, n - Inv.count(Res.SEEDS));
 			}
 			case DIRT -> {
 				return make("mine:dirt", () -> new MineTask("digging dirt", s -> s.is(Blocks.GRASS_BLOCK) || s.is(Blocks.DIRT),

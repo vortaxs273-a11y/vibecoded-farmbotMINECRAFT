@@ -38,6 +38,14 @@ public final class MineTask extends Task {
 	private int wanders;
 	private BlockPos wanderTo;
 	private final Random rnd = new Random();
+	private boolean partialOk;
+	private int startCount = -1;
+
+	/** Timing out after gathering some is a success, not a failure. */
+	public MineTask partialOk() {
+		partialOk = true;
+		return this;
+	}
 
 	public MineTask(String label, Predicate<BlockState> target, Predicate<ItemStack> want, int wantCount,
 	                int chunkRadius, int below, int above, boolean avoidFarm, int collectRadius) {
@@ -73,7 +81,9 @@ public final class MineTask extends Task {
 			}
 			return S.RUN;
 		}
+		if (startCount < 0) startCount = Inv.count(want);
 		if (Inv.count(want) >= wantCount) return S.OK;
+		if (partialOk && age > 20 * 60 * 3) return Inv.count(want) > startCount ? S.OK : fail("found none in 3 min");
 		if (Inv.freeSlots() == 0) return fail("inventory full");
 
 		if (wanderTo != null) {
