@@ -14,6 +14,7 @@ import java.util.function.Predicate;
 /** One-shot world interactions: place a block, right-click a block face, use a bucket. */
 public final class Act {
 	private static int cooldown;
+	public static String why = "";
 
 	private Act() {}
 
@@ -65,8 +66,14 @@ public final class Act {
 	public static boolean place(BlockPos target, Predicate<ItemStack> item) {
 		if (!ready()) return false;
 		BlockState at = W.st(target);
-		if (!at.canBeReplaced()) return false;
-		if (p().getBoundingBox().intersects(new AABB(target))) return false;
+		if (!at.canBeReplaced()) {
+			why = "place " + target.toShortString() + ": occupied";
+			return false;
+		}
+		if (p().getBoundingBox().intersects(new AABB(target))) {
+			why = "place " + target.toShortString() + ": standing in it";
+			return false;
+		}
 		// a flower/grass/snow layer sits there: click it directly, the new block replaces it (like a player would)
 		if (!at.isAir() && !W.isLiquidBlock(at) && !at.getShape(W.lvl(), target).isEmpty()) {
 			Vec3 hit = Breaker.visiblePoint(target);
@@ -91,8 +98,10 @@ public final class Act {
 			Ctl.lookAt(p(), hit);
 			Compat.useItemOn(new BlockHitResult(hit, face, nb, false));
 			cooldown = 3;
+			why = "place " + target.toShortString() + ": clicked " + nb.toShortString() + " " + face;
 			return true;
 		}
+		why = "place " + target.toShortString() + ": no visible face from " + p().blockPosition().toShortString();
 		return false;
 	}
 

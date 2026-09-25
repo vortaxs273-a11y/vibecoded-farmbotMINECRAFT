@@ -42,11 +42,12 @@ public final class BedTask extends Task {
 			if (!W.st(p).canBeReplaced() && !W.passable(p)) return Do.breakAt(b, p) == S.FAIL ? fail("can't clear bed spot") : S.RUN;
 			if (!W.sturdyTop(p.below())) {
 				if (Inv.count(Res.DIRT) + Inv.count(Res.COBBLE) == 0) return fail("no block for the bed floor");
-				return Do.placeAt(b, p.below(), s -> Res.DIRT.pred.test(s) || Res.COBBLE.pred.test(s), st -> !st.canBeReplaced()) == S.FAIL ? fail("can't floor") : S.RUN;
+				return Do.makeSolid(b, p.below(), s -> Res.DIRT.pred.test(s) || Res.COBBLE.pred.test(s)) == S.FAIL ? fail("can't floor") : S.RUN;
 			}
 		}
-		for (BlockPos p : new BlockPos[]{foot, head}) {
-			if (!W.st(p).isAir() && W.st(p).canBeReplaced()) return Do.breakAt(b, p) == S.FAIL ? fail("can't clear plant") : S.RUN;
+		// plants anywhere we stand or click would block the click, just like for a player
+		for (BlockPos p : new BlockPos[]{foot, head, stand, stand.above()}) {
+			if (!W.st(p).isAir() && W.st(p).canBeReplaced() && !W.isLiquidBlock(W.st(p))) return Do.breakAt(b, p) == S.FAIL ? fail("can't clear plant") : S.RUN;
 		}
 		// stand west of it, face east, click the floor of the foot: the head lands on the east block
 		S s = b.nav.goTo(new Goal.Block(stand), true);

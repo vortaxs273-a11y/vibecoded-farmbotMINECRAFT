@@ -68,7 +68,7 @@ public final class PlaceTask extends Task {
 				b.nav.reset();
 				return s == S.FAIL ? fail("no dirt for the floor") : S.RUN;
 			}
-			S s = Do.placeAt(b, below, st -> Res.DIRT.pred.test(st) || Res.COBBLE.pred.test(st), st -> !st.canBeReplaced());
+			S s = Do.makeSolid(b, below, st -> Res.DIRT.pred.test(st) || Res.COBBLE.pred.test(st));
 			return s == S.FAIL ? fail("cannot fix ground") : S.RUN;
 		}
 		S s = Do.placeAt(b, pos, item.pred, st -> st.is(block));

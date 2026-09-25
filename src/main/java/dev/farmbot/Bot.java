@@ -103,6 +103,11 @@ public final class Bot {
 	}
 
 	private void runTask() {
+		// nightfall with a bed nearby: drop whatever we're doing and go to bed
+		if (task != null && tick % 20 == 0 && !(task instanceof dev.farmbot.task.SleepTask) && state.bed != null
+			&& lvl.isDarkOutside() && BlockPos.of(state.bed).distSqr(p.blockPosition()) < 160 * 160 && !brain.sleepCooling()) {
+			abortTask();
+		}
 		if (task == null) {
 			task = brain.next(this);
 			if (task == null) return;

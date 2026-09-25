@@ -87,6 +87,19 @@ public final class Do {
 
 	private static int stuckAdjacent;
 
+	/**
+	 * Make `target` a solid block, filling the column from the bottom up if the ground dips (up to 4 deep).
+	 * OK once it's solid.
+	 */
+	public static S makeSolid(Bot b, BlockPos target, Predicate<ItemStack> filler) {
+		if (W.sturdyTop(target)) return S.OK;
+		BlockPos p = target;
+		for (int k = 0; k < 4 && !W.solid(p.below()); k++) p = p.below();
+		net.minecraft.world.level.block.state.BlockState st = W.st(p);
+		if (!st.canBeReplaced() && !W.passable(p)) return breakAt(b, p) == S.FAIL ? S.FAIL : S.RUN;
+		return placeAt(b, p, filler, s -> !s.canBeReplaced());
+	}
+
 	/** Walk over and right-click the top of a block with an item (hoe, seeds, flint and steel...). */
 	public static S useOnTop(Bot b, BlockPos pos, Predicate<ItemStack> item) {
 		S r = reach(b, pos, true);

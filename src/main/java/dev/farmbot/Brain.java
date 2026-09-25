@@ -64,6 +64,10 @@ public final class Brain {
 		keys.remove(t);
 	}
 
+	public boolean sleepCooling() {
+		return cooling("sleep");
+	}
+
 	private boolean cooling(String k) {
 		Long until = cooldown.get(k);
 		return until != null && until > Bot.I.tick;

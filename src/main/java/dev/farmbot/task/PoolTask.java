@@ -50,7 +50,7 @@ public final class PoolTask extends Task {
 				if (W.solid(p)) continue;
 				if (inside && W.isWater(W.st(p.above()))) continue; // too late, water already there; fine
 				if (Inv.count(filler) == 0) return fail("need dirt/cobble for the pool rim");
-				S s = Do.placeAt(b, p, filler, st -> !st.canBeReplaced());
+				S s = Do.makeSolid(b, p, filler);
 				return s == S.FAIL ? fail("cannot build pool rim") : S.RUN;
 			}
 		// 2. dig the holes
