@@ -97,7 +97,7 @@ Needs JDK 25.
 ./gradlew build
 ```
 
-The jar ends up in `build/libs/`. Drop it in `mods/` with Fabric Loader ≥ 0.19.5 and Fabric API for 26.1.2.
+The jar ends up in `build/libs/`. Drop it in `mods/` with Fabric Loader ≥ 0.18 and Fabric API for 26.1.2.
 CI builds it on every push; grab `farmbot-jar` from the Actions tab.
 
 ## How it works (for the curious)
