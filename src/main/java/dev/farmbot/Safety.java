@@ -21,6 +21,9 @@ import java.util.List;
  */
 public final class Safety {
 	public String what = "";
+	public net.minecraft.core.BlockPos deathPos;
+	public long deathTick;
+	private boolean night;
 	private BlockPos pickupWater;
 	private int pickupTicks;
 	private int eatTicks;
@@ -35,6 +38,10 @@ public final class Safety {
 		// --- death: respawn, forget the current plan, walk home from wherever we spawned ---
 		if (p.isDeadOrDying() || b.mc.screen instanceof DeathScreen) {
 			what = "respawning";
+			if (respawnDelay == 0) {
+				deathPos = p.blockPosition();
+				deathTick = b.tick;
+			}
 			if (++respawnDelay > 20) {
 				respawnDelay = 0;
 				Compat.respawn(p);
@@ -134,7 +141,11 @@ public final class Safety {
 		}
 
 		// --- about to die: dig a bunker, seal it, heal, come back out ---
-		if (bunker != null || (p.getHealth() <= Config.I.panicHealth && (nd < 12 || p.hurtTime > 0) && !p.isInWater())) {
+		boolean dark = b.lvl.isDarkOutside();
+		boolean onFarm = b.state.hasSite && Farm.inBuiltCell(p.getBlockX(), p.getBlockZ());
+		if (bunker != null || (p.getHealth() <= Config.I.panicHealth && (nd < 12 || p.hurtTime > 0) && !p.isInWater())
+			|| (dark && !onFarm && !p.isInWater() && p.onGround())) {
+			night = dark;
 			if (bunker(b, p, nd)) return true;
 		}
 
@@ -223,7 +234,8 @@ public final class Safety {
 	private boolean bunker(Bot b, LocalPlayer p, double nd) {
 		BlockPos f = BlockPos.containing(p.getX(), p.getY() + 0.2, p.getZ());
 		if (bunker == null) {
-			if (!p.onGround() || Inv.count(FILL) == 0 || !bunkerable(f)) {
+			if (!p.onGround() || !bunkerable(f)) {
+				if (night && nd >= 12) return false; // can't dig in right here; keep working and try again next step
 				// can't dig in here: get away and eat on the run
 				if (nd < 12) {
 					what = "low health: running";
@@ -255,15 +267,21 @@ public final class Safety {
 		// 2. seal the roof
 		if (W.passable(bunker) || W.st(bunker).canBeReplaced()) {
 			what = "sealing the bunker";
-			if (Act.place(bunker, FILL)) b.state.ours.add(bunker.asLong());
-			if (Inv.count(FILL) == 0) bunker = null;
+			if (Inv.count(FILL) == 0) {
+				what = "hiding in a hole (no block for the roof)";
+			} else if (Act.place(bunker, FILL)) b.state.ours.add(bunker.asLong());
+			if (W.passable(bunker) && Inv.count(FILL) == 0 && !b.lvl.isDarkOutside() && p.getHealth() >= 16) {
+				bunker = null;
+				return false;
+			}
 			return true;
 		}
 		// 3. heal
 		int food = p.getFoodData().getFoodLevel();
 		boolean safeOutside = hostiles(b, 8).isEmpty();
-		if ((p.getHealth() < 18 || !safeOutside) && bunkerTicks < 20 * 60 * 5) {
-			what = "healing in the bunker (" + (int) p.getHealth() + " hp)";
+		boolean stillNight = b.lvl.isDarkOutside();
+		if ((p.getHealth() < 18 || !safeOutside || stillNight) && bunkerTicks < 20 * 60 * 15) {
+			what = stillNight ? "sleeping in the bunker until morning" : "healing in the bunker (" + (int) p.getHealth() + " hp)";
 			int slot = Inv.bestFood(20 - food);
 			if (food < 20 && slot >= 0) {
 				if (Inv.selectIndex(slot)) {

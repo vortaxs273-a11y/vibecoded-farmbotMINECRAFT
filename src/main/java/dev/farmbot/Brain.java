@@ -84,6 +84,15 @@ public final class Brain {
 	public Task next(Bot b) {
 		keys.clear();
 		Task t;
+		// died? go get our stuff back before it despawns
+		if (b.safety.deathPos != null) {
+			BlockPos dp = b.safety.deathPos;
+			if (b.tick - b.safety.deathTick > 20 * 60 * 4) b.safety.deathPos = null;
+			else {
+				b.safety.deathPos = null;
+				return new dev.farmbot.task.RecoverTask(dp);
+			}
+		}
 		if ((t = food(b)) != null) return t;
 		if (!b.state.hasSite) return make("scout", ScoutTask::new);
 

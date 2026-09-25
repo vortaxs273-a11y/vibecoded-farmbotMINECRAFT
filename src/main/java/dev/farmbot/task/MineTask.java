@@ -39,6 +39,8 @@ public final class MineTask extends Task {
 	private BlockPos wanderTo;
 	private final Random rnd = new Random();
 	private boolean partialOk;
+	private BlockPos lastCur;
+	private int curTicks;
 	private int startCount = -1;
 
 	/** Timing out after gathering some is a success, not a failure. */
@@ -122,6 +124,18 @@ public final class MineTask extends Task {
 		if (!target.test(W.st(cur))) {
 			// someone (or gravity) beat us to it
 			collectTicks = 0;
+			return S.RUN;
+		}
+		if (!cur.equals(lastCur)) {
+			lastCur = cur;
+			curTicks = 0;
+		}
+		if (++curTicks > 20 * 30) {
+			// 30s on one block is a stall: skip it
+			b.blacklist(cur, 20 * 60 * 10);
+			cur = null;
+			b.nav.reset();
+			b.breaker.reset();
 			return S.RUN;
 		}
 		S s = Do.breakAt(b, cur);
