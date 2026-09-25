@@ -39,6 +39,7 @@ public final class Bot {
 		task = null;
 		nav.reset();
 		mc.options.pauseOnLostFocus = false;
+		Bari.configure();
 		Compat.localMessage("[FarmBot] farm farm farm. started." + (state.hasSite ? " returning to farm at " + Farm.home().toShortString() : " looking for untouched land..."));
 	}
 
@@ -47,6 +48,7 @@ public final class Bot {
 		if (task != null && p != null) task.stop(this);
 		task = null;
 		nav.reset();
+		Bari.cancel();
 		if (mc != null) {
 			Ctl.releaseAll(mc);
 			if (mc.player != null && mc.player.containerMenu != mc.player.inventoryMenu) mc.player.closeContainer();
@@ -83,8 +85,11 @@ public final class Bot {
 			if (!safety.tick(this)) {
 				runTask();
 			} else {
+				// safety has the wheel: Baritone lets go until it's over
+				nav.pause();
 				status = "SAFETY: " + safety.what;
 			}
+			breaker.endTick();
 		} catch (Exception e) {
 			FarmBotClient.LOG.error("farm farm farm (task crashed, re-planning)", e);
 			task = null;

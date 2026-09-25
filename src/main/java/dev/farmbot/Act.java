@@ -36,8 +36,9 @@ public final class Act {
 	/** Right-click a face of a block while holding a matching item. Returns true when the click was sent. */
 	public static boolean useOn(BlockPos pos, Direction face, Predicate<ItemStack> item) {
 		if (!ready()) return false;
+		Vec3 hit = Breaker.visibleFace(pos, face);
+		if (hit == null) return false;
 		if (item != null && !Inv.select(item)) return false;
-		Vec3 hit = Vec3.atCenterOf(pos).add(face.getStepX() * 0.5, face.getStepY() * 0.5, face.getStepZ() * 0.5);
 		Ctl.lookAt(p(), hit);
 		Compat.useItemOn(new BlockHitResult(hit, face, pos, false));
 		cooldown = 3;
@@ -48,7 +49,12 @@ public final class Act {
 	public static boolean open(BlockPos pos) {
 		if (!ready()) return false;
 		Direction face = Breaker.faceToward(pos, p().getEyePosition());
-		Vec3 hit = Vec3.atCenterOf(pos).add(face.getStepX() * 0.5, face.getStepY() * 0.5, face.getStepZ() * 0.5);
+		Vec3 hit = Breaker.visibleFace(pos, face);
+		if (hit == null) {
+			Vec3 any = Breaker.visiblePoint(pos);
+			if (any == null) return false;
+			hit = any;
+		}
 		Ctl.lookAt(p(), hit);
 		Compat.useItemOn(new BlockHitResult(hit, face, pos, false));
 		cooldown = 10;
@@ -68,9 +74,10 @@ public final class Act {
 			BlockState ns = W.st(nb);
 			if (ns.getCollisionShape(W.lvl(), nb).isEmpty()) continue;
 			if (Guard.interactive(ns)) continue;
-			if (!Inv.select(item)) return false;
 			Direction face = d.getOpposite();
-			Vec3 hit = Vec3.atCenterOf(nb).add(face.getStepX() * 0.5, face.getStepY() * 0.5, face.getStepZ() * 0.5);
+			Vec3 hit = Breaker.visibleFace(nb, face);
+			if (hit == null) continue;
+			if (!Inv.select(item)) return false;
 			Ctl.lookAt(p(), hit);
 			Compat.useItemOn(new BlockHitResult(hit, face, nb, false));
 			cooldown = 3;

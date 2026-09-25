@@ -42,21 +42,21 @@ public interface Goal {
 		}
 	}
 
-	/** Stand somewhere the eyes can reach a block (for breaking / placing / clicking it), but not inside it. */
+	/** Stand right next to a block (touching distance), like a player walking up to it. Never inside it. */
 	record Reach(int x, int y, int z, double r) implements Goal {
 		public Reach(BlockPos p, double r) {
 			this(p.getX(), p.getY(), p.getZ(), r);
 		}
 
 		public boolean test(int a, int b, int c) {
-			if (a == x && c == z && (b == y || b + 1 == y)) return false;
-			double dx = a + 0.5 - (x + 0.5), dy = b + 1.62 - (y + 0.5), dz = c + 0.5 - (z + 0.5);
-			return dx * dx + dy * dy + dz * dz <= r * r;
+			int dx = a - x, dz = c - z, dy = y - b;
+			if (dx == 0 && dz == 0) return false;
+			return Math.abs(dx) <= 1 && Math.abs(dz) <= 1 && dy >= -1 && dy <= 2;
 		}
 
 		public double h(int a, int b, int c) {
-			double dx = a - x, dy = b + 1.62 - (y + 0.5), dz = c - z;
-			return Math.max(0, Math.sqrt(dx * dx + dy * dy + dz * dz) - r) * WALK;
+			double dx = a - x, dy = b - y, dz = c - z;
+			return Math.sqrt(dx * dx + dy * dy + dz * dz) * WALK;
 		}
 	}
 

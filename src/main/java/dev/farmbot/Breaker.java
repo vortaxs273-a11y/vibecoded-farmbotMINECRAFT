@@ -3,30 +3,39 @@ package dev.farmbot;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket.Action;
+import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * Breaks one block at a time with raw dig packets and our own timing. Picks the best tool, faces the block,
- * sends START, counts ticks until the break would complete at 100%, sends STOP. Re-tries if the server disagrees.
+ * Breaks blocks exactly like a player: aim the crosshair at a face you can actually see, hold left click.
+ * If the block isn't in plain sight it refuses, and the caller has to walk somewhere it is.
  */
 public final class Breaker {
+	public static final double REACH = 4.4;
 	private BlockPos pos;
-	private boolean started, stopped;
-	private double progress;
-	private int ticks, afterStop;
+	private boolean clicking, usedThisTick;
+	private int ticks;
 
 	public void reset() {
-		if (started && !stopped && pos != null) Compat.dig(Action.ABORT_DESTROY_BLOCK, pos, Direction.UP);
 		pos = null;
-		started = stopped = false;
-		progress = 0;
-		ticks = afterStop = 0;
+		ticks = 0;
+		release();
 	}
 
-	public boolean busy() {
-		return pos != null && started;
+	private void release() {
+		if (clicking) {
+			Bari.click(false);
+			clicking = false;
+		}
+	}
+
+	/** Call once at the end of every bot tick: lets go of the mouse if nobody broke anything this tick. */
+	public void endTick() {
+		if (!usedThisTick) release();
+		usedThisTick = false;
 	}
 
 	public static boolean gone(BlockState s) {
@@ -35,51 +44,83 @@ public final class Breaker {
 
 	/** Tick the break. Returns true once the block is gone. */
 	public boolean tick(BlockPos p) {
+		usedThisTick = true;
 		LocalPlayer pl = Compat.mc().player;
 		BlockState s = W.st(p);
 		if (gone(s)) {
-			if (p.equals(pos)) {
-				pos = null;
-				started = stopped = false;
-			}
+			reset();
 			return true;
 		}
 		if (!p.equals(pos)) {
-			reset();
+			release();
 			pos = p.immutable();
-		}
-		Vec3 c = Vec3.atCenterOf(p);
-		Ctl.lookAt(pl, c);
-		int tool = Inv.bestTool(s);
-		if (!Inv.selectIndex(tool)) return false;
-
-		Direction face = faceToward(p, pl.getEyePosition());
-		if (!started) {
-			Compat.dig(Action.START_DESTROY_BLOCK, p, face);
-			Compat.swing();
-			started = true;
-			stopped = false;
-			progress = s.getDestroyProgress(pl, W.lvl(), p);
 			ticks = 0;
-			afterStop = 0;
-			if (progress >= 1.0) stopped = true; // instant break, server handles it on START
+		}
+		Vec3 aim = visiblePoint(p);
+		if (aim == null) {
+			release();
 			return false;
 		}
-		ticks++;
-		if (!stopped) {
-			Compat.swing();
-			progress += s.getDestroyProgress(pl, W.lvl(), p);
-			if (progress >= 1.0 && (pl.onGround() || pl.isInWater())) {
-				Compat.dig(Action.STOP_DESTROY_BLOCK, p, face);
-				stopped = true;
-			}
-			if (ticks > 1200) reset();
-		} else if (++afterStop > 20) {
-			// server didn't break it (lag, wrong tool sync...). Try again from scratch.
-			started = false;
-			stopped = false;
+		Ctl.lookAt(pl, aim);
+		if (!Inv.selectIndex(Inv.bestTool(s))) {
+			release();
+			return false;
 		}
+		HitResult hr = Compat.mc().hitResult;
+		if (hr instanceof BlockHitResult bhr && hr.getType() == HitResult.Type.BLOCK && bhr.getBlockPos().equals(p)) {
+			if (!clicking) {
+				Bari.click(true);
+				clicking = true;
+			}
+		} else {
+			// crosshair isn't on it yet (rotation applies next tick) - don't swing at something else
+			release();
+		}
+		if (++ticks > 1200) reset();
 		return false;
+	}
+
+	/** Is any part of this block visible and in reach? */
+	public static boolean canSee(BlockPos p) {
+		return visiblePoint(p) != null;
+	}
+
+	/**
+	 * A point on the block that a straight line from our eyes reaches without passing through anything else.
+	 * For air/replaceable targets (placing), "nothing in the way" counts.
+	 */
+	public static Vec3 visiblePoint(BlockPos p) {
+		LocalPlayer pl = Compat.mc().player;
+		Vec3 eye = pl.getEyePosition();
+		Vec3 c = Vec3.atCenterOf(p);
+		boolean empty = W.st(p).getShape(W.lvl(), p).isEmpty();
+		Vec3[] pts = new Vec3[7];
+		pts[0] = c;
+		int k = 1;
+		for (Direction d : Direction.values()) pts[k++] = c.add(d.getStepX() * 0.45, d.getStepY() * 0.45, d.getStepZ() * 0.45);
+		// nearest faces first
+		java.util.Arrays.sort(pts, (a, b) -> Double.compare(a.distanceToSqr(eye), b.distanceToSqr(eye)));
+		for (Vec3 pt : pts) {
+			if (pt.distanceTo(eye) > REACH) continue;
+			BlockHitResult r = W.lvl().clip(new ClipContext(eye, pt, ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, pl));
+			if (r.getType() == HitResult.Type.MISS) {
+				if (empty) return pt;
+				continue;
+			}
+			if (r.getBlockPos().equals(p)) return pt;
+		}
+		return null;
+	}
+
+	/** Visible point on one specific face (for right-clicking that face). */
+	public static Vec3 visibleFace(BlockPos p, Direction face) {
+		LocalPlayer pl = Compat.mc().player;
+		Vec3 eye = pl.getEyePosition();
+		Vec3 pt = Vec3.atCenterOf(p).add(face.getStepX() * 0.49, face.getStepY() * 0.49, face.getStepZ() * 0.49);
+		if (pt.distanceTo(eye) > REACH) return null;
+		BlockHitResult r = W.lvl().clip(new ClipContext(eye, pt, ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, pl));
+		if (r.getType() == HitResult.Type.BLOCK && r.getBlockPos().equals(p)) return pt;
+		return null;
 	}
 
 	public static Direction faceToward(BlockPos p, Vec3 eye) {

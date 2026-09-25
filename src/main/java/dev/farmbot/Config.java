@@ -33,11 +33,12 @@ public final class Config {
 	public float panicHealth = 5f;
 	public int eatBelowHunger = 14;
 
+	/** Baritone legitMine: only mine ores it has actually seen (branch mines at legitMineY). No x-ray tunnels. */
+	public boolean legitMining = true;
+	public int legitMineY = 16;
+
 	public boolean craftArmor = true;
 	public boolean placeTorches = true;
-	/** A* search budget per client tick. */
-	public int pathBudgetMs = 8;
-	public int pathMaxNodes = 60000;
 
 	private static Path path() {
 		return FabricLoader.getInstance().getConfigDir().resolve("farmbot").resolve("config.json");

@@ -11,6 +11,7 @@ import dev.farmbot.task.GotoTask;
 import dev.farmbot.task.HuntTask;
 import dev.farmbot.task.IdleTask;
 import dev.farmbot.task.MineTask;
+import dev.farmbot.task.OreTask;
 import dev.farmbot.task.PlaceTask;
 import dev.farmbot.task.PoolTask;
 import dev.farmbot.task.ScoutTask;
@@ -317,8 +318,7 @@ public final class Brain {
 		Smelt sm = Recipes.SMELT.get(r);
 		if (sm != null) {
 			if (r == Res.COAL && canMine(Blocks.COAL_ORE.defaultBlockState()) && !cooling("mine:coal")) {
-				return make("mine:coal", () -> new MineTask("mining coal", s -> s.is(Blocks.COAL_ORE) || s.is(Blocks.DEEPSLATE_COAL_ORE),
-					Res.COAL.pred, n, 5, 48, 32, true, 4));
+				return make("mine:coal", () -> new OreTask("mining coal", Res.COAL.pred, n, Blocks.COAL_ORE, Blocks.DEEPSLATE_COAL_ORE));
 			}
 			if (SmeltTask.findFurnace(b) == null && Inv.count(Res.FURNACE) == 0) {
 				Task t = obtain(b, Res.FURNACE, 1, depth + 1);
@@ -352,8 +352,7 @@ public final class Brain {
 			}
 			case RAW_IRON -> {
 				if (!canMine(IRON_ORE)) return obtain(b, Res.STONE_PICK, 1, depth + 1);
-				return make("mine:iron", () -> new MineTask("mining iron", s -> s.is(Blocks.IRON_ORE) || s.is(Blocks.DEEPSLATE_IRON_ORE),
-					Res.RAW_IRON.pred, n, 6, 96, 48, true, 4));
+				return make("mine:iron", () -> new OreTask("mining iron", Res.RAW_IRON.pred, n, Blocks.IRON_ORE, Blocks.DEEPSLATE_IRON_ORE));
 			}
 			case GRAVEL -> {
 				return make("mine:gravel", () -> new MineTask("digging gravel", s -> s.is(Blocks.GRAVEL),

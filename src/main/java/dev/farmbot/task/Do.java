@@ -25,11 +25,15 @@ public final class Do {
 
 	private Do() {}
 
-	/** Walk into reach of pos. OK when there. */
+	/** Walk until pos is in reach AND in plain sight (no reaching through walls). OK when there. */
 	public static S reach(Bot b, BlockPos pos, boolean dig) {
-		if (Act.inReach(pos, REACH) && !b.nav.pathing()) return S.OK;
-		if (Act.inReach(pos, REACH - 0.6)) return S.OK;
-		return b.nav.goTo(new Goal.Reach(pos, REACH - 0.4), dig);
+		if (Breaker.canSee(pos)) {
+			if (b.nav.pathing()) b.nav.reset();
+			return S.OK;
+		}
+		S s = b.nav.goTo(new Goal.Reach(pos, REACH), dig);
+		// right next to it and still can't see it (buried): the task's op timeout will move on
+		return s == S.OK ? S.RUN : s;
 	}
 
 	/** Walk over and break a block. OK once it's gone. */

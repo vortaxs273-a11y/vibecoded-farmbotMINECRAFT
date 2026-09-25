@@ -36,7 +36,7 @@ public final class HuntTask extends Task {
 	private BlockPos fireAt;
 	private final Set<Integer> ignore = new HashSet<>();
 	private final Do.Collector collector = new Do.Collector();
-	private int collectTicks = -1, targetTicks, extinguish;
+	private int collectTicks = -1, targetTicks;
 	private BlockPos killPos;
 
 	public HuntTask(int wantFood) {
@@ -61,17 +61,8 @@ public final class HuntTask extends Task {
 
 	@Override
 	public S tick(Bot b) {
-		// put out any fire we started
-		if (fireAt != null && (target == null || !target.isAlive())) {
-			if (extinguish++ < 200) {
-				BlockPos f = findFire(fireAt);
-				if (f != null) {
-					Do.breakAt(b, f);
-					return S.RUN;
-				}
-			}
-			fireAt = null;
-		}
+		// (the fire we lit sits on bare grass with nothing flammable around; it burns out by itself in seconds)
+		if (fireAt != null && (target == null || !target.isAlive())) fireAt = null;
 		if (collectTicks >= 0) {
 			S c = collector.tick(b, killPos, 6, s -> Inv.nutrition(s) > 0);
 			if (c == S.OK || ++collectTicks > 160) {
@@ -165,13 +156,4 @@ public final class HuntTask extends Task {
 		return true;
 	}
 
-	private static BlockPos findFire(BlockPos c) {
-		for (int x = -4; x <= 4; x++)
-			for (int y = -2; y <= 2; y++)
-				for (int z = -4; z <= 4; z++) {
-					BlockPos p = c.offset(x, y, z);
-					if (W.isFire(W.st(p))) return p;
-				}
-		return null;
-	}
 }

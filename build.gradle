@@ -9,7 +9,17 @@ base {
 	archivesName = project.archives_base_name
 }
 
+// Baritone does the walking, digging and ore mining. It's a runtime mod dependency (players install the jar);
+// we only compile against it.
+def baritoneJar = file("libs/baritone-api-fabric-${project.baritone_version}.jar")
+if (!baritoneJar.exists()) {
+	baritoneJar.parentFile.mkdirs()
+	new URL("https://github.com/cabaletta/baritone/releases/download/v${project.baritone_version}/baritone-api-fabric-${project.baritone_version}.jar")
+		.withInputStream { i -> baritoneJar.withOutputStream { it << i } }
+}
+
 dependencies {
+	compileOnly files(baritoneJar)
 	minecraft "com.mojang:minecraft:${project.minecraft_version}"
 	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
 	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"

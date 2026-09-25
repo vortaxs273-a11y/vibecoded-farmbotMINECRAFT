@@ -6,7 +6,10 @@ A Fabric client mod for **Minecraft 26.1.2** that turns your player into a fully
 `/farmbot start` and it takes over. It finds untouched land, gears itself up from nothing, builds a huge wheat
 farm, and then farms. Forever. It only wants to farm.
 
-It doesn't use Baritone. It has its own pathfinder, miner, crafter and planner, all written for this one job.
+**Requires [Baritone](https://github.com/cabaletta/baritone/releases) 1.18.0 for 26.1** (`baritone-api-fabric-1.18.0.jar`
+in your mods folder). Baritone does the walking, digging to reach things and legit ore mining; FarmBot does the
+planning, crafting, farming, safety and anti-grief. Blocks are only ever broken with the crosshair on a face that's
+actually in view, through the vanilla breaking path, so it never breaks anything through walls.
 
 ## What it does, start to finish
 
@@ -16,8 +19,8 @@ It doesn't use Baritone. It has its own pathfinder, miner, crafter and planner, 
    anywhere it has seen another player. If nothing in view qualifies, it walks 160 blocks in a new direction and
    looks again.
 2. **Gears up from nothing.** Punches trees → planks/sticks/table → wooden pick → stone → stone pick, sword, axe,
-   shovel, hoe → furnace at home → **iron**: it scans loaded chunks for iron ore (x-ray style, from the chunk data
-   the server already sends), digs a tunnel straight to it, smelts it → iron pickaxe, 2 buckets, flint & steel,
+   shovel, hoe → furnace at home → **iron**: Baritone legit-mines it (`legitMine`: only ores it has actually seen,
+   branch mining at Y=16 otherwise, no x-ray tunnels), then it smelts it → iron pickaxe, 2 buckets, flint & steel,
    shield, iron sword. Later: full iron armor, torches (coal ore or charcoal).
 3. **Builds home.** Crafting table, furnace and chests at fixed spots, plus a 2x2 **infinite water pool**.
 4. **Builds farm cells.** 9x9 cells spiral out from home. Each cell: clear plants and trees, level the ground with
@@ -48,8 +51,7 @@ The safety layer runs before every task, every tick:
 - **Creepers**: runs
 - **Eating**: eats the least wasteful food before hunger gets low, and eats to regenerate health
 - **Armor + shield**: equips itself automatically
-- **Pathing**: never plans a step next to lava, into fire, magma, cactus, berry bushes, powder snow or dripstone,
-  never drops more than 3 blocks (except into water), never digs a block that touches lava
+- **Pathing**: Baritone's, with parkour off, max 3-block drops without water and anti-cheat compatibility on
 - **Panic logout** (optional, on by default): disconnects if it's about to die anyway
 
 ## Anti-grief
@@ -104,9 +106,8 @@ CI builds it on every push; grab `farmbot-jar` from the Actions tab.
 
 | File | |
 |---|---|
-| `path/AStar.java` | Incremental A* over standing positions: walk, diagonal, jump up, drop down, swim, dig through, dig down, pillar up. Costs are in ticks and include real block-break times for the tools it's carrying. Runs in an ~8 ms/tick budget so the game never stutters. |
-| `path/Nav.java` | Path follower. Breaks whatever's in the way, jumps, pillars, swims, re-plans when stuck or knocked off the path. |
-| `Breaker.java` | Mines with raw dig packets and its own timing, so vanilla's "you let go of the mouse" logic can't cancel a break. Always picks the fastest correct tool. |
+| `Bari.java`, `path/Nav.java` | Baritone setup (never breaks player-made blocks, farmland or wheat while pathing) and goal handling. |
+| `Breaker.java` | Line-of-sight check, crosshair on a visible face, hold left click. Always picks the fastest correct tool. |
 | `Brain.java` | Stateless planner that re-decides from inventory + world every time a task ends. Has a recursive "get me N of X" resolver (craft ← ingredients ← gather/smelt), plus cooldowns so a failure never becomes a loop. |
 | `Safety.java` | Everything under "Not dying". |
 | `Guard.java` | Anti-grief rules. |
