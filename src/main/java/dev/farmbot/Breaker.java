@@ -18,6 +18,7 @@ public final class Breaker {
 	private BlockPos pos;
 	private boolean clicking, usedThisTick;
 	private int ticks;
+	public String dbg = "";
 
 	public void reset() {
 		pos = null;
@@ -58,6 +59,7 @@ public final class Breaker {
 		}
 		Vec3 aim = visiblePoint(p);
 		if (aim == null) {
+			dbg = "brk " + p.toShortString() + " NOT VISIBLE";
 			release();
 			return false;
 		}
@@ -67,6 +69,8 @@ public final class Breaker {
 			return false;
 		}
 		HitResult hr = Compat.mc().hitResult;
+		dbg = "brk " + p.toShortString() + " t=" + ticks + " click=" + clicking + " hit=" + (hr instanceof BlockHitResult bh ? bh.getBlockPos().toShortString() : String.valueOf(hr == null ? null : hr.getType()))
+			+ " destroying=" + Compat.mc().gameMode.isDestroying() + " sel=" + Compat.selectedSlot(pl);
 		if (hr instanceof BlockHitResult bhr && hr.getType() == HitResult.Type.BLOCK && bhr.getBlockPos().equals(p)) {
 			if (!clicking) {
 				Bari.click(true);
@@ -94,12 +98,24 @@ public final class Breaker {
 		Vec3 eye = pl.getEyePosition();
 		Vec3 c = Vec3.atCenterOf(p);
 		boolean empty = W.st(p).getShape(W.lvl(), p).isEmpty();
-		Vec3[] pts = new Vec3[7];
-		pts[0] = c;
-		int k = 1;
-		for (Direction d : Direction.values()) pts[k++] = c.add(d.getStepX() * 0.45, d.getStepY() * 0.45, d.getStepZ() * 0.45);
-		// nearest faces first
-		java.util.Arrays.sort(pts, (a, b) -> Double.compare(a.distanceToSqr(eye), b.distanceToSqr(eye)));
+		// centre + a 3x3 grid on every face, nearest first
+		java.util.List<Vec3> pts = new java.util.ArrayList<>(55);
+		pts.add(c);
+		double[] o = {-0.3, 0, 0.3};
+		for (Direction d : Direction.values()) {
+			Vec3 fc = c.add(d.getStepX() * 0.45, d.getStepY() * 0.45, d.getStepZ() * 0.45);
+			for (double u : o)
+				for (double v : o) {
+					double x = fc.x, y = fc.y, z = fc.z;
+					switch (d.getAxis()) {
+						case X -> { y += u; z += v; }
+						case Y -> { x += u; z += v; }
+						case Z -> { x += u; y += v; }
+					}
+					pts.add(new Vec3(x, y, z));
+				}
+		}
+		pts.sort((a, b) -> Double.compare(a.distanceToSqr(eye), b.distanceToSqr(eye)));
 		for (Vec3 pt : pts) {
 			if (pt.distanceTo(eye) > REACH) continue;
 			BlockHitResult r = W.lvl().clip(new ClipContext(eye, pt, ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, pl));

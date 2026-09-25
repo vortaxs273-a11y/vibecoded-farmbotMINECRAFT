@@ -78,7 +78,7 @@ public final class Farm {
 	public static boolean inBuiltCell(int x, int z) {
 		if (!s().hasSite) return false;
 		int i = cellOfX(x), j = cellOfZ(z);
-		return (i == 0 && j == 0) || s().cell(i, j) == FarmState.BUILT;
+		return s().cell(i, j) == FarmState.BUILT;
 	}
 
 	/** Farm blocks the pathfinder must never dig through. */

@@ -16,6 +16,7 @@ public final class PlaceTask extends Task {
 	public final Res item;
 	private final Block block;
 	private final Consumer<BlockPos> onDone;
+	private Task sub;
 
 	public PlaceTask(BlockPos pos, Res item, Block block, Consumer<BlockPos> onDone) {
 		this.pos = pos;
@@ -45,7 +46,8 @@ public final class PlaceTask extends Task {
 		if (Inv.count(item) == 0) return fail("no " + item);
 		// clear the spot
 		if (!W.st(pos).canBeReplaced()) {
-			if (!Guard.mayBreak(pos, W.st(pos))) return fail("spot is protected");
+			// only someone else's build stops us; our own home ground is ours to shape
+			if (Guard.artificial(W.st(pos)) && !Guard.ours(pos)) return fail("spot is protected");
 			S s = Do.breakAt(b, pos);
 			return s == S.FAIL ? fail("cannot clear spot") : S.RUN;
 		}
@@ -56,7 +58,16 @@ public final class PlaceTask extends Task {
 				S s = Do.breakAt(b, below);
 				return s == S.FAIL ? fail("cannot fix ground") : S.RUN;
 			}
-			if (Inv.count(Res.DIRT) + Inv.count(Res.COBBLE) == 0) return fail("need a block for the floor");
+			if (Inv.count(Res.DIRT) + Inv.count(Res.COBBLE) == 0) {
+				// go dig a few blocks of dirt for the floor first
+				if (sub == null) sub = BuildCellTask.dirtTask(8);
+				S s = sub.tick(b);
+				sub.age++;
+				if (s == S.RUN && sub.age < sub.timeout()) return S.RUN;
+				sub = null;
+				b.nav.reset();
+				return s == S.FAIL ? fail("no dirt for the floor") : S.RUN;
+			}
 			S s = Do.placeAt(b, below, st -> Res.DIRT.pred.test(st) || Res.COBBLE.pred.test(st), st -> !st.canBeReplaced());
 			return s == S.FAIL ? fail("cannot fix ground") : S.RUN;
 		}

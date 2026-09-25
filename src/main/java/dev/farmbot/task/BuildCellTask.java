@@ -176,7 +176,11 @@ public final class BuildCellTask extends Task {
 	}
 
 	static MineTask dirtTask() {
-		return new MineTask("digging dirt", s -> s.is(Blocks.GRASS_BLOCK) || s.is(Blocks.DIRT), s -> s.is(Items.DIRT), 48,
+		return dirtTask(48);
+	}
+
+	static MineTask dirtTask(int n) {
+		return new MineTask("digging dirt", s -> s.is(Blocks.GRASS_BLOCK) || s.is(Blocks.DIRT), s -> s.is(Items.DIRT), Inv.count(s -> s.is(Items.DIRT)) + n,
 			6, 6, 4, true, 4);
 	}
 

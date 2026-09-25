@@ -67,6 +67,16 @@ public final class Act {
 		BlockState at = W.st(target);
 		if (!at.canBeReplaced()) return false;
 		if (p().getBoundingBox().intersects(new AABB(target))) return false;
+		// a flower/grass/snow layer sits there: click it directly, the new block replaces it (like a player would)
+		if (!at.isAir() && !W.isLiquidBlock(at) && !at.getShape(W.lvl(), target).isEmpty()) {
+			Vec3 hit = Breaker.visiblePoint(target);
+			if (hit == null) return false;
+			if (!Inv.select(item)) return false;
+			Ctl.lookAt(p(), hit);
+			Compat.useItemOn(new BlockHitResult(hit, Direction.UP, target, false));
+			cooldown = 3;
+			return true;
+		}
 		// find a face to click against, preferring the block below
 		Direction[] order = {Direction.DOWN, Direction.NORTH, Direction.SOUTH, Direction.EAST, Direction.WEST, Direction.UP};
 		for (Direction d : order) {

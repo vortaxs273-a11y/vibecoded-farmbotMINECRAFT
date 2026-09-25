@@ -32,8 +32,8 @@ public final class Do {
 			return S.OK;
 		}
 		S s = b.nav.goTo(new Goal.Reach(pos, REACH), dig);
-		// right next to it and still can't see it (buried): the task's op timeout will move on
-		return s == S.OK ? S.RUN : s;
+		// standing right next to it and still no line of sight: give up on this one, don't loop
+		return s == S.OK ? S.FAIL : s;
 	}
 
 	/** Walk over and break a block. OK once it's gone. */
@@ -55,15 +55,39 @@ public final class Do {
 			b.breaker.tick(pos);
 			return S.RUN;
 		}
-		Act.place(pos, item);
+		if (Act.ready() && !Act.place(pos, item)) return closer(b, pos);
 		return S.RUN;
 	}
+
+	private static BlockPos missPos;
+	private static int misses;
+
+	/** Couldn't get a clean click from here (a flower or edge in the way): walk right up to it and retry. */
+	private static S closer(Bot b, BlockPos pos) {
+		if (!pos.equals(missPos)) {
+			missPos = pos;
+			misses = 0;
+		}
+		if (++misses < 5) return S.RUN;
+		S s = b.nav.goTo(new Goal.Reach(pos, REACH), true);
+		if (s == S.OK) {
+			misses = 0;
+			if (++stuckAdjacent > 40) {
+				stuckAdjacent = 0;
+				return S.FAIL; // right next to it and still can't click it
+			}
+			return S.RUN;
+		}
+		return s;
+	}
+
+	private static int stuckAdjacent;
 
 	/** Walk over and right-click the top of a block with an item (hoe, seeds, flint and steel...). */
 	public static S useOnTop(Bot b, BlockPos pos, Predicate<ItemStack> item) {
 		S r = reach(b, pos, true);
 		if (r != S.OK) return r;
-		Act.useOn(pos, Direction.UP, item);
+		if (Act.ready() && !Act.useOn(pos, Direction.UP, item)) return closer(b, pos);
 		return S.RUN;
 	}
 
