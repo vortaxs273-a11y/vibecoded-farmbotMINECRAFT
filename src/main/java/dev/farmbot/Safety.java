@@ -280,7 +280,8 @@ public final class Safety {
 		int food = p.getFoodData().getFoodLevel();
 		boolean safeOutside = hostiles(b, 8).isEmpty();
 		boolean stillNight = b.lvl.isDarkOutside();
-		if ((p.getHealth() < 18 || !safeOutside || stillNight) && bunkerTicks < 20 * 60 * 15) {
+		boolean canHeal = food >= 18 || Inv.foodValue() > 0; // natural regen needs a full-ish belly
+		if (((p.getHealth() < 18 && canHeal) || !safeOutside || stillNight) && bunkerTicks < 20 * 60 * 15) {
 			what = stillNight ? "sleeping in the bunker until morning" : "healing in the bunker (" + (int) p.getHealth() + " hp)";
 			int slot = Inv.bestFood(20 - food);
 			if (food < 20 && slot >= 0) {
