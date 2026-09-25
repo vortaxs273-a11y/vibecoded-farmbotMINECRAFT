@@ -3,7 +3,7 @@ package dev.farmbot;
 import com.mojang.brigadier.arguments.BoolArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import net.fabricmc.api.ClientModInitializer;
-import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
+import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -43,38 +43,38 @@ public final class FarmBotClient implements ClientModInitializer {
 		});
 
 		ClientCommandRegistrationCallback.EVENT.register((dispatcher, ctx) -> dispatcher.register(
-			ClientCommandManager.literal("farmbot")
-				.then(ClientCommandManager.literal("start").executes(c -> {
+			ClientCommands.literal("farmbot")
+				.then(ClientCommands.literal("start").executes(c -> {
 					Bot.I.start();
 					return 1;
 				}))
-				.then(ClientCommandManager.literal("stop").executes(c -> {
+				.then(ClientCommands.literal("stop").executes(c -> {
 					Bot.I.stop();
 					reply(c.getSource(), "stopped. farm... farm...");
 					return 1;
 				}))
-				.then(ClientCommandManager.literal("status").executes(c -> {
+				.then(ClientCommands.literal("status").executes(c -> {
 					status(c.getSource());
 					return 1;
 				}))
-				.then(ClientCommandManager.literal("resetsite").executes(c -> {
+				.then(ClientCommands.literal("resetsite").executes(c -> {
 					Bot.I.state.reset();
 					reply(c.getSource(), "forgot the farm location. will scout for new untouched land.");
 					return 1;
 				}))
-				.then(ClientCommandManager.literal("say").executes(c -> {
+				.then(ClientCommands.literal("say").executes(c -> {
 					reply(c.getSource(), Chat.corrupt());
 					return 1;
 				}))
-				.then(ClientCommandManager.literal("autostart")
-					.then(ClientCommandManager.argument("on", BoolArgumentType.bool()).executes(c -> {
+				.then(ClientCommands.literal("autostart")
+					.then(ClientCommands.argument("on", BoolArgumentType.bool()).executes(c -> {
 						Config.I.autoStart = BoolArgumentType.getBool(c, "on");
 						Config.save();
 						reply(c.getSource(), "autostart " + (Config.I.autoStart ? "on" : "off"));
 						return 1;
 					})))
-				.then(ClientCommandManager.literal("rings")
-					.then(ClientCommandManager.argument("n", IntegerArgumentType.integer(0, 30)).executes(c -> {
+				.then(ClientCommands.literal("rings")
+					.then(ClientCommands.argument("n", IntegerArgumentType.integer(0, 30)).executes(c -> {
 						Config.I.maxRings = IntegerArgumentType.getInteger(c, "n");
 						Config.save();
 						int side = (Config.I.maxRings * 2 + 1) * Farm.SIZE;
