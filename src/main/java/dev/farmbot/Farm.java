@@ -19,6 +19,8 @@ public final class Farm {
 	public static final int[][] POOL = {{0, 0}, {1, 0}, {0, 1}, {1, 1}};
 	public static final int[] TABLE = {-3, -3};
 	public static final int[] FURNACE = {-3, -2};
+	/** bed foot, head goes one block east; we stand one block west to place it facing east */
+	public static final int[] BED = {-1, -3};
 	public static final int[][] CHESTS = {{3, -3}, {3, -2}, {3, 2}, {3, 3}, {-3, 2}, {-3, 3}, {2, -3}, {2, 3}};
 
 	private Farm() {}
@@ -62,6 +64,7 @@ public final class Farm {
 			// crop-free walkway around the pool so bucket ray-traces never clip wheat
 			if (dx >= -1 && dx <= 2 && dz >= -1 && dz <= 2) return Tile.UTIL;
 			if (dx == TABLE[0] && dz == TABLE[1]) return Tile.UTIL;
+			if (dz == BED[1] && dx >= BED[0] - 1 && dx <= BED[0] + 1) return Tile.UTIL;
 			if (dx == FURNACE[0] && dz == FURNACE[1]) return Tile.UTIL;
 			for (int[] c : CHESTS) if (c[0] == dx && c[1] == dz) return Tile.UTIL;
 			return Tile.FARM;

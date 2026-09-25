@@ -41,6 +41,7 @@ public final class Recipes {
 		r(Res.STONE_SWORD, 1, new String[]{"C", "C", "S"}, 'C', Res.COBBLE, 'S', Res.STICK);
 		r(Res.STONE_HOE, 1, new String[]{"CC", " S", " S"}, 'C', Res.COBBLE, 'S', Res.STICK);
 		r(Res.FURNACE, 1, new String[]{"CCC", "C C", "CCC"}, 'C', Res.COBBLE);
+		r(Res.BED, 1, new String[]{"WWW", "PPP"}, 'W', Res.WHITE_WOOL, 'P', Res.PLANKS);
 		r(Res.CHEST, 1, new String[]{"PPP", "P P", "PPP"}, 'P', Res.PLANKS);
 		r(Res.IRON_PICK, 1, new String[]{"III", " S ", " S "}, 'I', Res.IRON_INGOT, 'S', Res.STICK);
 		r(Res.IRON_SWORD, 1, new String[]{"I", "I", "S"}, 'I', Res.IRON_INGOT, 'S', Res.STICK);

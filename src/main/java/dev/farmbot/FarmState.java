@@ -31,6 +31,8 @@ public final class FarmState {
 	/** chests we've filled to the brim (skipped when storing) */
 	public Set<Long> fullChests = new HashSet<>();
 	public Long table, furnace;
+	/** foot of our bed: where we sleep and respawn */
+	public Long bed;
 	public boolean pool;
 	/** we left something cooking in the home furnace */
 	public boolean furnaceLoaded;

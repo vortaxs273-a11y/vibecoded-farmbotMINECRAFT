@@ -93,6 +93,10 @@ public final class Brain {
 				return new dev.farmbot.task.RecoverTask(dp);
 			}
 		}
+		// night and we have a bed: go sleep (skips the night, keeps our spawn at the farm)
+		if (b.state.bed != null && b.lvl.isDarkOutside() && BlockPos.of(b.state.bed).distSqr(b.p.blockPosition()) < 160 * 160) {
+			if ((t = make("sleep", dev.farmbot.task.SleepTask::new)) != null) return t;
+		}
 		if ((t = food(b)) != null) return t;
 		// something's been cooking at home: go get it
 		if (b.state.furnaceLoaded && b.state.furnace != null) {
@@ -119,7 +123,10 @@ public final class Brain {
 	private Task food(Bot b) {
 		int hunger = b.p.getFoodData().getFoodLevel();
 		int fv = Inv.foodValue();
-		if (fv >= 12 || hunger > 16) return null;
+		// always carry a stock (so it can heal after a fight), hunt during the day when it runs low
+		boolean low = fv < 20 && !b.lvl.isDarkOutside();
+		if (fv >= 12 && !low) return null;
+		if (hunger > 16 && !low) return null;
 		blocked = false;
 		if (Inv.count(Res.WHEAT) >= 3) {
 			Task t = obtain(b, Res.BREAD, Inv.count(Res.BREAD) + Inv.count(Res.WHEAT) / 3, 0);
@@ -157,6 +164,7 @@ public final class Brain {
 		Task t;
 		if (!canMine(STONE) && (t = step(() -> obtain(b, Res.WOOD_PICK, 1, 0))) != null) return t;
 		if ((t = homeBlock(b, Res.CRAFTING_TABLE, Farm.TABLE, Blocks.CRAFTING_TABLE, true)) != null) return t;
+		if ((t = bed(b)) != null) return t;
 		if (!canMine(IRON_ORE) && (t = step(() -> obtain(b, Res.STONE_PICK, 1, 0))) != null) return t;
 		if (!has(s -> s.is(ItemTags.SWORDS)) && (t = step(() -> obtain(b, Res.STONE_SWORD, 1, 0))) != null) return t;
 		if (!has(s -> s.is(ItemTags.AXES)) && (t = step(() -> obtain(b, Res.STONE_AXE, 1, 0))) != null) return t;
@@ -172,10 +180,33 @@ public final class Brain {
 			&& (t = step(() -> obtain(b, Res.IRON_PICK, 1, 0))) != null) return t;
 		int buckets = Inv.count(Res.BUCKET) + Inv.count(Res.WATER_BUCKET);
 		if (buckets < 2 && (t = step(() -> obtain(b, Res.BUCKET, Inv.count(Res.BUCKET) + 2 - buckets, 0))) != null) return t;
+		// armor before anything else iron: this is what keeps it alive away from home
+		// chestplate + leggings = 11 of 15 armor points for 15 iron; helmet/boots come later as chores
+		Res[] armor = {Res.IRON_CHESTPLATE, Res.IRON_LEGGINGS};
+		net.minecraft.world.entity.EquipmentSlot[] slots = {net.minecraft.world.entity.EquipmentSlot.CHEST,
+			net.minecraft.world.entity.EquipmentSlot.LEGS};
+		for (int k = 0; k < armor.length; k++) {
+			if (!b.p.getItemBySlot(slots[k]).isEmpty() || Inv.count(armor[k]) > 0) continue;
+			Res r = armor[k];
+			if ((t = step(() -> obtain(b, r, 1, 0))) != null) return t;
+		}
 		if (!has(s -> s.is(Items.FLINT_AND_STEEL)) && (t = step(() -> obtain(b, Res.FLINT_AND_STEEL, 1, 0))) != null) return t;
 		if (!has(s -> s.is(Items.SHIELD)) && (t = step(() -> obtain(b, Res.SHIELD, 1, 0))) != null) return t;
 		if (!has(s -> s.is(Items.IRON_SWORD) || s.is(Items.DIAMOND_SWORD)) && (t = step(() -> obtain(b, Res.IRON_SWORD, 1, 0))) != null) return t;
 		return null;
+	}
+
+	/** A bed at home: nights skipped, respawn at the farm. */
+	private Task bed(Bot b) {
+		if (b.state.bed != null) {
+			BlockPos bp = BlockPos.of(b.state.bed);
+			if (!W.loaded(bp) || W.st(bp).is(net.minecraft.tags.BlockTags.BEDS)) return null;
+			b.state.bed = null;
+		}
+		blocked = false;
+		if (Inv.count(Res.BED) > 0) return make("place:bed", dev.farmbot.task.BedTask::new);
+		if (Inv.count(Res.WHITE_WOOL) < 3) return make("hunt:wool", () -> dev.farmbot.task.HuntTask.wool(3));
+		return step(() -> obtain(b, Res.BED, 1, 0));
 	}
 
 	private int ironNeeded() {
@@ -186,6 +217,9 @@ public final class Brain {
 		if (!has(s -> s.is(Items.FLINT_AND_STEEL))) n += 1;
 		if (!has(s -> s.is(Items.SHIELD))) n += 1;
 		if (!has(s -> s.is(Items.IRON_SWORD) || s.is(Items.DIAMOND_SWORD))) n += 2;
+		Bot b = Bot.I;
+		if (b.p.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.CHEST).isEmpty() && Inv.count(Res.IRON_CHESTPLATE) == 0) n += 8;
+		if (b.p.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.LEGS).isEmpty() && Inv.count(Res.IRON_LEGGINGS) == 0) n += 7;
 		return n;
 	}
 

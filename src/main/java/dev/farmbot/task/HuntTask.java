@@ -43,8 +43,18 @@ public final class HuntTask extends Task {
 		this.wantFood = wantFood;
 	}
 
+	private int wantWool;
+
+	/** Hunt white sheep until we have n white wool (for the bed). No fire: it'd waste the wool. */
+	public static HuntTask wool(int n) {
+		HuntTask t = new HuntTask(0);
+		t.wantWool = n;
+		return t;
+	}
+
 	@Override
 	public String name() {
+		if (wantWool > 0) return "hunting sheep for a bed " + Inv.count(dev.farmbot.Res.WHITE_WOOL) + "/" + wantWool;
 		return "hunting (flint & steel cooking) food " + Inv.foodValue() + "/" + wantFood;
 	}
 
@@ -71,7 +81,7 @@ public final class HuntTask extends Task {
 			}
 			return S.RUN;
 		}
-		if (Inv.foodValue() >= wantFood) return S.OK;
+		if (wantWool > 0 ? Inv.count(dev.farmbot.Res.WHITE_WOOL) >= wantWool : Inv.foodValue() >= wantFood) return S.OK;
 
 		if (target == null || !target.isAlive()) {
 			if (target != null && !target.isAlive()) {
@@ -91,7 +101,7 @@ public final class HuntTask extends Task {
 		}
 		double d = target.distanceTo(b.p);
 		// light it up
-		boolean fns = Inv.has(FNS);
+		boolean fns = Inv.has(FNS) && wantWool == 0;
 		if (fns && !target.isOnFire() && fireAt == null && d < 4.0 && fireSafe(b, target.blockPosition())) {
 			BlockPos feet = target.blockPosition();
 			BlockState at = W.st(feet);
@@ -122,7 +132,9 @@ public final class HuntTask extends Task {
 
 	private LivingEntity pick(Bot b) {
 		List<Entity> es = b.lvl.getEntities(b.p, b.p.getBoundingBox().inflate(48), e -> e instanceof LivingEntity le && le.isAlive()
-			&& isFood(e) && !le.isBaby() && !e.hasCustomName() && !ignore.contains(e.getId()));
+			&& isFood(e) && !le.isBaby() && !e.hasCustomName() && !ignore.contains(e.getId())
+			&& (wantWool == 0 || (e instanceof net.minecraft.world.entity.animal.sheep.Sheep sh && !sh.isSheared()
+				&& sh.getColor() == net.minecraft.world.item.DyeColor.WHITE)));
 		LivingEntity best = null;
 		double bd = Double.MAX_VALUE;
 		for (Entity e : es) {

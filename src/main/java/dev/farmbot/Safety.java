@@ -144,6 +144,10 @@ public final class Safety {
 		// night only matters on the surface; underground it's always dark, so keep mining
 		boolean dark = b.lvl.isDarkOutside() && b.lvl.canSeeSky(BlockPos.containing(p.getEyePosition()));
 		boolean onFarm = b.state.hasSite && Farm.inBuiltCell(p.getBlockX(), p.getBlockZ());
+		// with a bed at home the brain walks there and sleeps instead; the bunker is only the fallback
+		boolean bedNear = b.state.bed != null && BlockPos.of(b.state.bed).distSqr(p.blockPosition()) < 160 * 160
+			&& !(b.task instanceof dev.farmbot.task.SleepTask && b.task.why.length() > 0);
+		if (bedNear && bunker == null && p.getHealth() > Config.I.panicHealth) dark = false;
 		if (bunker != null || (p.getHealth() <= Config.I.panicHealth && (nd < 12 || p.hurtTime > 0) && !p.isInWater())
 			|| (dark && !onFarm && !p.isInWater() && p.onGround())) {
 			night = dark;
@@ -176,10 +180,29 @@ public final class Safety {
 			if (p.getHealth() < 8) runFrom(p, nearest.position());
 			return true;
 		}
-		if (nearest != null && p.getHealth() < 8 && nd < 10) {
-			what = "retreating";
-			runFrom(p, nearest.position());
+		if (nearest != null && p.getHealth() < 10 && nd < 12) {
+			what = "retreating home";
+			if (b.state.hasSite && Farm.home().distSqr(p.blockPosition()) > 16) {
+				BlockPos h = b.state.bed != null ? BlockPos.of(b.state.bed) : Farm.home();
+				Ctl.faceXZ(p, h.getX() + 0.5, h.getZ() + 0.5);
+				Ctl.fwd = true;
+				Ctl.sprint = p.getFoodData().getFoodLevel() > 6;
+				if ((p.horizontalCollision && p.onGround()) || p.isInWater()) Ctl.jump = true;
+			} else runFrom(p, nearest.position());
 			return true;
+		}
+		// archers: rush them with the sword rather than stand in the line of fire
+		for (LivingEntity h : hostiles) {
+			var ty = h.getType();
+			if ((ty == EntityType.SKELETON || ty == EntityType.STRAY || ty == EntityType.BOGGED) && h.distanceTo(p) < 14
+				&& p.getHealth() >= 12 && Inv.has(s -> s.is(net.minecraft.tags.ItemTags.SWORDS)) && p.hasLineOfSight(h)) {
+				what = "charging a skeleton";
+				Ctl.faceXZ(p, h.getX(), h.getZ());
+				Ctl.fwd = true;
+				Ctl.sprint = p.getFoodData().getFoodLevel() > 6;
+				if ((p.horizontalCollision && p.onGround()) || p.isInWater()) Ctl.jump = true;
+				return true;
+			}
 		}
 
 		// --- eat ---

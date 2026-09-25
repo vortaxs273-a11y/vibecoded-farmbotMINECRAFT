@@ -17,6 +17,8 @@ public enum Res {
 	DIRT(s -> s.is(Items.DIRT)),
 	FURNACE(Items.FURNACE),
 	CHEST(Items.CHEST),
+	WHITE_WOOL(Items.WHITE_WOOL),
+	BED(s -> s.is(ItemTags.BEDS)),
 	WOOD_PICK(Items.WOODEN_PICKAXE),
 	STONE_PICK(Items.STONE_PICKAXE),
 	STONE_AXE(Items.STONE_AXE),
