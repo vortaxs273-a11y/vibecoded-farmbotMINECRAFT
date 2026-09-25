@@ -27,10 +27,8 @@ public final class Breaker {
 	}
 
 	private void release() {
-		if (clicking) {
-			Bari.click(false);
-			clicking = false;
-		}
+		if (clicking) Bari.click(false);
+		clicking = false;
 	}
 
 	/** Call once at the end of every bot tick: lets go of the mouse if nobody broke anything this tick. */
@@ -72,10 +70,9 @@ public final class Breaker {
 		dbg = "brk " + p.toShortString() + " t=" + ticks + " click=" + clicking + " hit=" + (hr instanceof BlockHitResult bh ? bh.getBlockPos().toShortString() : String.valueOf(hr == null ? null : hr.getType()))
 			+ " destroying=" + Compat.mc().gameMode.isDestroying() + " sel=" + Compat.selectedSlot(pl);
 		if (hr instanceof BlockHitResult bhr && hr.getType() == HitResult.Type.BLOCK && bhr.getBlockPos().equals(p)) {
-			if (!clicking) {
-				Bari.click(true);
-				clicking = true;
-			}
+			// re-assert every tick: Baritone clears forced inputs whenever a path starts or stops
+			Bari.click(true);
+			clicking = true;
 		} else {
 			// crosshair isn't on it yet (rotation applies next tick) - don't swing at something else
 			release();

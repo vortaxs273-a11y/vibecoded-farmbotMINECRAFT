@@ -71,7 +71,7 @@ public final class SmeltTask extends Task {
 					ph = ph == Ph.OPEN_LOAD ? Ph.LOAD : Ph.TAKE;
 					return S.RUN;
 				}
-				if (!W.st(furnace).is(Blocks.FURNACE)) return fail("furnace vanished");
+				if (W.loaded(furnace) && !W.st(furnace).is(Blocks.FURNACE)) return fail("furnace vanished");
 				S s = Do.reach(b, furnace, true);
 				if (s == S.FAIL) return fail("cannot reach furnace");
 				if (s == S.OK) Act.open(furnace);
@@ -200,7 +200,7 @@ public final class SmeltTask extends Task {
 		BlockPos me = b.p.blockPosition();
 		if (b.state.furnace != null) {
 			BlockPos f = BlockPos.of(b.state.furnace);
-			if (f.distSqr(me) < 64 * 64 && W.st(f).is(Blocks.FURNACE)) return f;
+			if (f.distSqr(me) < 128 * 128 && (!W.loaded(f) || W.st(f).is(Blocks.FURNACE))) return f;
 		}
 		for (Long l : b.state.ours) {
 			BlockPos f = BlockPos.of(l);

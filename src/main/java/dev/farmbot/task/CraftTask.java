@@ -38,7 +38,7 @@ public final class CraftTask extends Task {
 
 	@Override
 	public int timeout() {
-		return 20 * 90;
+		return 20 * 180;
 	}
 
 	@Override
@@ -63,7 +63,16 @@ public final class CraftTask extends Task {
 			}
 			case PLACE_TABLE -> {
 				S s = Do.placeAt(b, table, Res.CRAFTING_TABLE.pred, st -> st.is(Blocks.CRAFTING_TABLE));
-				if (s == S.FAIL || age > 400 && s == S.RUN && !W.st(table).is(Blocks.CRAFTING_TABLE)) return fail("could not place table");
+				if (s == S.FAIL || age > 400 && s == S.RUN && !W.st(table).is(Blocks.CRAFTING_TABLE)) {
+					if (b.state.table != null) {
+						// couldn't set one up here: go use the one at home
+						table = BlockPos.of(b.state.table);
+						temp = false;
+						ph = Ph.OPEN;
+						return S.RUN;
+					}
+					return fail("could not place table");
+				}
 				if (s == S.OK) {
 					b.state.ours.add(table.asLong());
 					ph = Ph.OPEN;
@@ -74,7 +83,7 @@ public final class CraftTask extends Task {
 					ph = Ph.FILL;
 					return S.RUN;
 				}
-				if (!W.st(table).is(Blocks.CRAFTING_TABLE)) return fail("table vanished");
+				if (W.loaded(table) && !W.st(table).is(Blocks.CRAFTING_TABLE)) return fail("table vanished");
 				S s = Do.reach(b, table, true);
 				if (s == S.FAIL) return fail("cannot reach table");
 				if (s == S.OK) Act.open(table);
@@ -138,7 +147,8 @@ public final class CraftTask extends Task {
 		BlockPos me = b.p.blockPosition();
 		if (b.state.table != null) {
 			BlockPos t = BlockPos.of(b.state.table);
-			if (t.distSqr(me) < 24 * 24 && W.st(t).is(Blocks.CRAFTING_TABLE)) return t;
+			// walk home to use it unless we're really far out (then a temporary table is faster)
+			if (t.distSqr(me) < 128 * 128 && (!W.loaded(t) || W.st(t).is(Blocks.CRAFTING_TABLE))) return t;
 		}
 		for (Long l : b.state.ours) {
 			BlockPos t = BlockPos.of(l);
