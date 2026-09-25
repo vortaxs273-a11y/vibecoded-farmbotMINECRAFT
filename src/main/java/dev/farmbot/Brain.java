@@ -94,6 +94,12 @@ public final class Brain {
 			}
 		}
 		if ((t = food(b)) != null) return t;
+		// something's been cooking at home: go get it
+		if (b.state.furnaceLoaded && b.state.furnace != null) {
+			BlockPos fp = BlockPos.of(b.state.furnace);
+			Task c = make("collect-furnace", () -> dev.farmbot.task.SmeltTask.collect(Recipes.SMELT.get(Res.IRON_INGOT), fp));
+			if (c != null) return c;
+		}
 		if (!b.state.hasSite) return make("scout", ScoutTask::new);
 
 		if ((t = inventory(b)) != null) return t;

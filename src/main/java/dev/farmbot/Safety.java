@@ -217,17 +217,17 @@ public final class Safety {
 
 	/** Can we safely sink two blocks straight down from here? */
 	private static boolean bunkerable(BlockPos f) {
-		for (int dy = 1; dy <= 2; dy++) {
+		for (int dy = 1; dy <= 3; dy++) {
 			BlockPos d = f.below(dy);
 			var s = W.st(d);
 			if (W.passable(d) || !Guard.mayBreak(d, s) || s.getDestroySpeed(W.lvl(), d) > 5 || s.getDestroySpeed(W.lvl(), d) < 0) return false;
-			if (W.fallingAbove(d) && dy == 2) return false;
+			if (W.fallingAbove(d) && dy >= 2) return false;
 			if (W.lavaNear(d)) return false;
 		}
-		if (!W.standable(f.below(3)) || W.lavaNear(f.below(3))) return false;
+		if (!W.standable(f.below(4)) || W.lavaNear(f.below(4))) return false;
 		// walls around the hole must hold
 		for (net.minecraft.core.Direction d : net.minecraft.core.Direction.Plane.HORIZONTAL) {
-			if (!W.solid(f.below().relative(d)) || !W.solid(f.below(2).relative(d))) return false;
+			for (int dy = 1; dy <= 3; dy++) if (!W.solid(f.below(dy).relative(d))) return false;
 		}
 		return true;
 	}
@@ -245,12 +245,12 @@ public final class Safety {
 				}
 				return false;
 			}
-			bunker = f;
+			bunker = f.below(); // the roof: first ground block, surrounded by solid ground
 			bunkerTicks = 0;
 			FarmBotClient.LOG.info("[farmbot] low health ({}), digging in at {}", p.getHealth(), f);
 		}
 		bunkerTicks++;
-		BlockPos floor = bunker.below(2); // feet level once dug in
+		BlockPos floor = bunker.below(2); // feet level once dug in (3 below the surface)
 		// 1. dig down
 		if (f.getY() > floor.getY()) {
 			what = "digging a bunker";

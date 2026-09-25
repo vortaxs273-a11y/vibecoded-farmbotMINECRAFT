@@ -27,6 +27,17 @@ public final class SmeltTask extends Task {
 	private int wait, loaded, startOut;
 	private final Do.Collector collector = new Do.Collector();
 
+	private boolean collectOnly;
+
+	/** Just go empty the home furnace (something was left cooking there). */
+	public static SmeltTask collect(Smelt sm, net.minecraft.core.BlockPos furnace) {
+		SmeltTask t = new SmeltTask(sm, 1);
+		t.collectOnly = true;
+		t.furnace = furnace;
+		t.ph = Ph.OPEN_TAKE;
+		return t;
+	}
+
 	public SmeltTask(Smelt sm, int count) {
 		this.sm = sm;
 		this.count = Math.max(1, Math.min(64, count));
@@ -39,7 +50,7 @@ public final class SmeltTask extends Task {
 
 	@Override
 	public int timeout() {
-		return 20 * (count * 10 + 180);
+		return 20 * (count * 10 + 600);
 	}
 
 	@Override
@@ -111,6 +122,10 @@ public final class SmeltTask extends Task {
 					return fail("no fuel");
 				}
 				b.p.closeContainer();
+				if (!temp) {
+					b.state.furnaceLoaded = true;
+					b.state.save();
+				}
 				ph = Ph.WAIT;
 				wait = 0;
 			}
@@ -132,6 +147,14 @@ public final class SmeltTask extends Task {
 					return S.RUN;
 				}
 				if (inputLeft) Compat.quickMove(m.containerId, 0);
+				if (!temp) {
+					b.state.furnaceLoaded = false;
+					b.state.save();
+				}
+				if (collectOnly) {
+					b.p.closeContainer();
+					return S.OK;
+				}
 				if (!m.getSlot(1).getItem().isEmpty() && temp) Compat.quickMove(m.containerId, 1);
 				b.p.closeContainer();
 				if (temp) {

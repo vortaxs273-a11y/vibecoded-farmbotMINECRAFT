@@ -32,6 +32,8 @@ public final class FarmState {
 	public Set<Long> fullChests = new HashSet<>();
 	public Long table, furnace;
 	public boolean pool;
+	/** we left something cooking in the home furnace */
+	public boolean furnaceLoaded;
 	public Set<Long> ours = new HashSet<>();
 	public List<long[]> playerSightings = new ArrayList<>(); // x, z, time
 	public int deaths;
