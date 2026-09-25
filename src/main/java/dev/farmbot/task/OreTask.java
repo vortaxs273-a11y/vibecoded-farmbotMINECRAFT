@@ -46,7 +46,7 @@ public final class OreTask extends Task {
 		}
 		if (Inv.freeSlots() == 0) {
 			Bari.cancel();
-			return fail("inventory full");
+			return S.OK;
 		}
 		// no progress for 8 minutes: give up for now, the brain will try again later
 		if (have != lastCount) {

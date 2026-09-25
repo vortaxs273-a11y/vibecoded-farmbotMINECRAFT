@@ -96,7 +96,7 @@ public final class BuildCellTask extends Task {
 			if (s != S.OK) return fail("sub-task failed");
 			return S.RUN;
 		}
-		if (Inv.freeSlots() == 0) return fail("inventory full");
+		if (Inv.freeSlots() == 0) return S.OK; // not built yet; the brain makes room and comes back
 
 		if (cur == null || !stillNeeded(cur)) {
 			cur = next(b);

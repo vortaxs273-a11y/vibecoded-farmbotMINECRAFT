@@ -147,7 +147,7 @@ public final class ScoutTask extends Task {
 	}
 
 	private boolean nearSighting(Bot b, int x, int z) {
-		int r = Config.I.avoidPlayerRadius;
+		int r = Bot.I.mc.getCurrentServer() != null ? Math.max(160, Config.I.avoidPlayerRadius) : Config.I.avoidPlayerRadius;
 		for (long[] s : b.state.playerSightings) {
 			long dx = s[0] - x, dz = s[1] - z;
 			if (dx * dx + dz * dz < (long) r * r) return true;
@@ -160,6 +160,8 @@ public final class ScoutTask extends Task {
 		// the longer we search, the less picky we get
 		int K = hops > 8 ? Math.max(4, Config.I.siteChunks - 3) : hops > 4 ? Math.max(5, Config.I.siteChunks - 2) : Config.I.siteChunks;
 		int M = hops > 6 ? Math.max(1, Config.I.marginChunks - 1) : Config.I.marginChunks;
+		// on a server, keep well clear of other people's land (claims extend past their builds)
+		if (b.mc.getCurrentServer() != null) M = Math.max(M, 4);
 		double maxStd = hops > 6 ? 3.5 : 2.5;
 		double minPlains = hops > 8 ? 0.7 : hops > 4 ? 0.8 : 0.88;
 		int pcx = b.p.getBlockX() >> 4, pcz = b.p.getBlockZ() >> 4;

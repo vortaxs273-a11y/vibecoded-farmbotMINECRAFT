@@ -41,6 +41,9 @@ public final class Bot {
 		breaker.reset();
 		mc.options.pauseOnLostFocus = false;
 		Bari.configure();
+		// plots skipped in an earlier session get a fresh look (the terrain check re-skips truly bad ones)
+		state.cells.entrySet().removeIf(e -> e.getValue() == FarmState.SKIPPED);
+		state.save();
 		Compat.localMessage("[FarmBot] farm farm farm. started." + (state.hasSite ? " returning to farm at " + Farm.home().toShortString() : " looking for untouched land..."));
 	}
 

@@ -5,17 +5,19 @@ import dev.farmbot.Ctl;
 import dev.farmbot.Farm;
 import dev.farmbot.path.Goal;
 
-/** Nothing ripe, nothing to build. Stand at home and stare at the wheat. It is growing. farm. */
+/** Nothing to do right now; the status says exactly why. */
 public final class IdleTask extends Task {
 	private final int ticks;
+	private final String reason;
 
-	public IdleTask(int ticks) {
+	public IdleTask(int ticks, String reason) {
 		this.ticks = ticks;
+		this.reason = reason;
 	}
 
 	@Override
 	public String name() {
-		return "watching the wheat grow";
+		return "idle: " + reason;
 	}
 
 	@Override

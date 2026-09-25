@@ -86,7 +86,7 @@ public final class MineTask extends Task {
 		if (startCount < 0) startCount = Inv.count(want);
 		if (Inv.count(want) >= wantCount) return S.OK;
 		if (partialOk && age > 20 * 60 * 3) return Inv.count(want) > startCount ? S.OK : fail("found none in 3 min");
-		if (Inv.freeSlots() == 0) return fail("inventory full");
+		if (Inv.freeSlots() == 0) return S.OK; // the brain empties our pockets next
 
 		if (wanderTo != null) {
 			S s = b.nav.goTo(new Goal.XZ(wanderTo.getX(), wanderTo.getZ(), 4), true);

@@ -108,6 +108,19 @@ public final class Do {
 		return S.RUN;
 	}
 
+	private static final java.util.Map<net.minecraft.world.item.Item, Long> DROPPED = new java.util.HashMap<>();
+
+	/** We threw this away on purpose: don't collect that item type for 5 minutes. */
+	public static void dropped(ItemStack s) {
+		DROPPED.put(s.getItem(), Bot.I.tick + 20 * 60 * 5);
+	}
+
+	static boolean wanted(ItemStack s) {
+		Long until = DROPPED.get(s.getItem());
+		if (until != null && until > Bot.I.tick) return false;
+		return StoreTask.useful(s);
+	}
+
 	/** Nearest dropped item matching pred within r of center. */
 	public static ItemEntity nearestItem(Bot b, BlockPos center, int r, Predicate<ItemStack> pred, Set<Integer> ignore) {
 		List<Entity> es = b.lvl.getEntities((Entity) null, new AABB(center).inflate(r), e -> e.getType() == EntityType.ITEM);
@@ -117,6 +130,7 @@ public final class Do {
 			ItemEntity ie = (ItemEntity) e;
 			if (!ie.isAlive() || ignore.contains(ie.getId())) continue;
 			if (pred != null && !pred.test(ie.getItem())) continue;
+			if (!wanted(ie.getItem())) continue;
 			if (W.isLava(W.st(ie.blockPosition())) || W.isFire(W.st(ie.blockPosition()))) continue;
 			double d = ie.distanceToSqr(b.p);
 			if (d < bd) {

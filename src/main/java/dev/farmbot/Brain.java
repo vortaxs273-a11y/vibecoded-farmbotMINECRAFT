@@ -64,6 +64,13 @@ public final class Brain {
 		keys.remove(t);
 	}
 
+	private int cooldownCount() {
+		long now = Bot.I.tick;
+		int n = 0;
+		for (long until : cooldown.values()) if (until > now) n++;
+		return n;
+	}
+
 	public boolean sleepCooling() {
 		return cooling("sleep");
 	}
@@ -121,7 +128,15 @@ public final class Brain {
 			Task s = seeds(b, 32);
 			if (s != null) return s;
 		}
-		return new IdleTask(20 * 5);
+		// say exactly why we're idle - never pretend there's wheat when there isn't
+		int[] sv = surveyed(b);
+		int growing = 0;
+		for (int[] c : Farm.builtCells()) growing++;
+		String why;
+		if (growing == 0) why = "no plots built yet (seeds " + Inv.count(Res.SEEDS) + ", cooldowns " + cooldownCount() + ")";
+		else if (sv[0] == 0) why = growing + " plots growing, nothing ripe yet";
+		else why = sv[0] + " ripe but blocked (cooldowns " + cooldownCount() + ")";
+		return new IdleTask(20 * 5, why);
 	}
 
 	private Task food(Bot b) {
@@ -142,12 +157,27 @@ public final class Brain {
 
 	private Task inventory(Bot b) {
 		if (Inv.freeSlots() > 2) return null;
+		// 1. junk goes first (flowers, eggs, odd wool, andesite...). never picked up again.
+		StoreTask.tossJunk(b);
+		if (Inv.freeSlots() > 2) return null;
+		// 2. wheat -> bread (3 slots become 1)
 		if (Inv.count(Res.WHEAT) >= 3 && CraftTask.findTable(b) != null) {
 			blocked = false;
 			Task t = obtain(b, Res.BREAD, Inv.count(Res.BREAD) + Inv.count(Res.WHEAT) / 3, 0);
 			if (t != null) return t;
 		}
-		return make("store", StoreTask::new);
+		// 3. into our chests
+		Task t = make("store", StoreTask::new);
+		if (t != null) return t;
+		// 4. no room anywhere: build another chest if we can, else drop the cheapest surplus
+		if (Inv.count(Res.CHEST) == 0 && Inv.count(Res.PLANKS) + Inv.count(Res.LOG) * 4 >= 8 && CraftTask.findTable(b) != null) {
+			blocked = false;
+			t = obtain(b, Res.CHEST, 1, 0);
+			if (t != null) return t;
+		}
+		needChest = true;
+		if (Inv.freeSlots() <= 1) StoreTask.makeRoom(b, 3);
+		return null;
 	}
 
 	private static boolean canMine(BlockState s) {
@@ -326,11 +356,7 @@ public final class Brain {
 			// build even with few seeds: water + tilled soil is ready the moment seeds come in
 			if (seeds == 0 && (t = seeds(b, 16)) != null) return t;
 			String key = "cell:" + c[0] + "," + c[1];
-			if (cooling(key)) {
-				// failed twice here recently; give up on this plot for good
-				b.state.setCell(c[0], c[1], FarmState.SKIPPED);
-				continue;
-			}
+			if (cooling(key)) continue; // failed recently: try the next plot, come back later
 			return make(key, () -> new BuildCellTask(b, c[0], c[1]));
 		}
 		return null;

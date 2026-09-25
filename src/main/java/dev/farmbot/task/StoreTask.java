@@ -69,7 +69,10 @@ public final class StoreTask extends Task {
 				int cid = b.p.inventoryMenu.containerId;
 				for (int i = 0; i < Inv.SIZE; i++) {
 					ItemStack s = Inv.get(i);
-					if (!useful(s)) Compat.throwStack(cid, Inv.menuSlot(b.p.inventoryMenu, i));
+					if (!useful(s)) {
+						Do.dropped(s);
+						Compat.throwStack(cid, Inv.menuSlot(b.p.inventoryMenu, i));
+					}
 				}
 				ph = Ph.GO;
 			}
@@ -134,7 +137,7 @@ public final class StoreTask extends Task {
 	}
 
 	/** Free up slots by dropping surplus, cheapest first (dirt, cobble, seeds... bread last). */
-	private static void makeRoom(Bot b, int slots) {
+	public static void makeRoom(Bot b, int slots) {
 		if (!Inv.noScreenMenu()) b.p.closeContainer();
 		int cid = b.p.inventoryMenu.containerId;
 		Res[] order = {Res.DIRT, Res.GRAVEL, Res.COBBLE, Res.SEEDS, Res.STICK, Res.WHEAT, Res.BREAD};
@@ -148,8 +151,21 @@ public final class StoreTask extends Task {
 					kept += st.getCount();
 					continue;
 				}
+				Do.dropped(st);
 				Compat.throwStack(cid, Inv.menuSlot(b.p.inventoryMenu, i));
 			}
+		}
+	}
+
+	/** Throw away everything we have no use for. Remembered, so collectors don't pick it back up. */
+	public static void tossJunk(Bot b) {
+		if (!Inv.noScreenMenu()) return;
+		int cid = b.p.inventoryMenu.containerId;
+		for (int i = 0; i < Inv.SIZE; i++) {
+			ItemStack s = Inv.get(i);
+			if (s.isEmpty() || useful(s)) continue;
+			Do.dropped(s);
+			Compat.throwStack(cid, Inv.menuSlot(b.p.inventoryMenu, i));
 		}
 	}
 
