@@ -32,7 +32,7 @@ public final class ScoutTask extends Task {
 	private enum Phase { ANALYZE, TRAVEL }
 	private Phase phase = Phase.ANALYZE;
 	private List<int[]> todo;
-	private int hops;
+	private static int hops;
 	private double dirAngle = Double.NaN;
 	private BlockPos target;
 
@@ -48,6 +48,11 @@ public final class ScoutTask extends Task {
 
 	@Override
 	public S tick(Bot b) {
+		// hungry with nothing to eat: stop and let the brain go hunt, then we carry on scouting
+		if (b.p.getFoodData().getFoodLevel() <= 14 && dev.farmbot.Inv.foodValue() < 6 && age > 20) {
+			b.nav.reset();
+			return S.OK;
+		}
 		String key = Compat.serverKey();
 		if (!key.equals(cacheKey)) {
 			CACHE.clear();
@@ -152,9 +157,11 @@ public final class ScoutTask extends Task {
 
 	/** Returns {x, feetY, z} of the best site centre, or null. */
 	private int[] evaluate(Bot b) {
-		int K = Config.I.siteChunks;
+		// the longer we search, the less picky we get
+		int K = hops > 8 ? Math.max(4, Config.I.siteChunks - 3) : hops > 4 ? Math.max(5, Config.I.siteChunks - 2) : Config.I.siteChunks;
 		int M = hops > 6 ? Math.max(1, Config.I.marginChunks - 1) : Config.I.marginChunks;
 		double maxStd = hops > 6 ? 3.5 : 2.5;
+		double minPlains = hops > 8 ? 0.7 : hops > 4 ? 0.8 : 0.88;
 		int pcx = b.p.getBlockX() >> 4, pcz = b.p.getBlockZ() >> 4;
 		int[] best = null;
 		double bestScore = Double.MAX_VALUE;
@@ -179,7 +186,7 @@ public final class ScoutTask extends Task {
 					}
 				water /= (K * K);
 				plains /= (K * K);
-				if (Config.I.infinite && plains < 0.97) continue;
+				if (Config.I.infinite && plains < minPlains) continue;
 				double mean = all.stream().mapToInt(Integer::intValue).average().orElse(0);
 				double var = all.stream().mapToDouble(h -> (h - mean) * (h - mean)).average().orElse(0);
 				double std = Math.sqrt(var);
@@ -200,16 +207,25 @@ public final class ScoutTask extends Task {
 	}
 
 	private void pickDirection(Bot b) {
-		if (Double.isNaN(dirAngle) && Config.I.infinite) {
+		if (Config.I.infinite) {
 			// infinite mode: head for the biggest patch of plains we can see
 			double sx = 0, sz = 0;
 			int pcx = b.p.getBlockX() >> 4, pcz = b.p.getBlockZ() >> 4;
+			int n = 0;
 			for (Map.Entry<Long, Info> e : CACHE.entrySet()) {
 				if (e.getValue().plains < 0.9 || e.getValue().dirty) continue;
-				sx += (int) (e.getKey() >> 32) - pcx;
-				sz += (int) (long) e.getKey() - pcz;
+				int dx = (int) (e.getKey() >> 32) - pcx, dz = (int) (long) e.getKey() - pcz;
+				if (dx * dx + dz * dz > 14 * 14) continue;
+				sx += dx;
+				sz += dz;
+				n++;
 			}
-			if (sx != 0 || sz != 0) dirAngle = Math.atan2(sz, sx);
+			// plains nearby: head into the middle of them. otherwise keep exploring.
+			if (n >= 6 && (sx * sx + sz * sz) > (double) n * n) {
+				dirAngle = Math.atan2(sz, sx);
+				target = new BlockPos((int) (b.p.getX() + sx / n * 16), 0, (int) (b.p.getZ() + sz / n * 16));
+				return;
+			}
 		}
 		if (Double.isNaN(dirAngle)) {
 			// head away from the mess we can see
@@ -225,6 +241,23 @@ public final class ScoutTask extends Task {
 		} else {
 			dirAngle += (rnd.nextDouble() - 0.5) * 0.8;
 		}
+		// don't wander into oceans: of 8 headings near the current one, take the driest
+		int pcx0 = b.p.getBlockX() >> 4, pcz0 = b.p.getBlockZ() >> 4;
+		double bestA = dirAngle, bestScore = Double.MAX_VALUE;
+		for (int k = 0; k < 8; k++) {
+			double a = dirAngle + k * Math.PI / 4;
+			double wet = 0;
+			for (int r = 2; r <= 12; r++) {
+				Info i = CACHE.get(key(pcx0 + (int) Math.round(Math.cos(a) * r), pcz0 + (int) Math.round(Math.sin(a) * r)));
+				if (i != null) wet += i.water() + (Config.I.infinite ? (1 - i.plains()) * 0.3 : 0);
+			}
+			double score = wet * 10 + Math.min(k, 8 - k); // prefer keeping roughly the same heading
+			if (score < bestScore) {
+				bestScore = score;
+				bestA = a;
+			}
+		}
+		dirAngle = bestA;
 		int step = Config.I.exploreStep;
 		target = new BlockPos((int) (b.p.getX() + Math.cos(dirAngle) * step), 0, (int) (b.p.getZ() + Math.sin(dirAngle) * step));
 	}

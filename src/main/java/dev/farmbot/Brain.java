@@ -84,9 +84,9 @@ public final class Brain {
 	public Task next(Bot b) {
 		keys.clear();
 		Task t;
+		if ((t = food(b)) != null) return t;
 		if (!b.state.hasSite) return make("scout", ScoutTask::new);
 
-		if ((t = food(b)) != null) return t;
 		if ((t = inventory(b)) != null) return t;
 		if ((t = gear(b)) != null) return t;
 		if ((t = home(b)) != null) return t;
