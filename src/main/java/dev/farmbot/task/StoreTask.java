@@ -39,7 +39,7 @@ public final class StoreTask extends Task {
 
 	private enum Ph { TOSS, GO, DEPOSIT, NEXT }
 	private Ph ph = Ph.TOSS;
-	private int chestIdx;
+	private BlockPos cur;
 	private int wait;
 	private boolean movedSomething;
 
@@ -77,12 +77,9 @@ public final class StoreTask extends Task {
 				if (!needsStoring()) return S.OK;
 				BlockPos chest = chest(b);
 				if (chest == null) {
-					if (b.state.chests.size() >= dev.farmbot.Farm.CHESTS.length) {
-						// storage is maxed out; the farm must go on. surplus goes on the floor.
-						tossSurplus(b);
-						return S.OK;
-					}
-					return Inv.freeSlots() > 0 ? S.OK : fail("no chest to store in");
+					// every chest is full: make room to work (drop the cheapest surplus), then the brain builds more chests
+					makeRoom(b, 4);
+					return fail("no chest to store in");
 				}
 				if (b.p.containerMenu instanceof ChestMenu) {
 					ph = Ph.DEPOSIT;
@@ -127,29 +124,31 @@ public final class StoreTask extends Task {
 				if (++wait < 4) return S.RUN;
 				b.p.closeContainer();
 				if (!needsStoring()) return S.OK;
-				// this chest must be full, try the next one
-				chestIdx++;
+				// this chest must be full: remember that, try the next one
+				if (cur != null) b.state.fullChests.add(cur.asLong());
+				b.state.save();
 				ph = Ph.GO;
 			}
 		}
 		return S.RUN;
 	}
 
-	private static void tossSurplus(Bot b) {
+	/** Free up slots by dropping surplus, cheapest first (dirt, cobble, seeds... bread last). */
+	private static void makeRoom(Bot b, int slots) {
 		if (!Inv.noScreenMenu()) b.p.closeContainer();
-		Map<Res, Integer> keep = new EnumMap<>(KEEP);
 		int cid = b.p.inventoryMenu.containerId;
-		for (int i = 0; i < Inv.SIZE; i++) {
-			ItemStack st = Inv.get(i);
-			if (st.isEmpty()) continue;
-			for (Map.Entry<Res, Integer> e : keep.entrySet()) {
-				if (!e.getKey().pred.test(st)) continue;
-				if (e.getValue() >= st.getCount()) e.setValue(e.getValue() - st.getCount());
-				else {
-					Compat.throwStack(cid, Inv.menuSlot(b.p.inventoryMenu, i));
-					e.setValue(0);
+		Res[] order = {Res.DIRT, Res.GRAVEL, Res.COBBLE, Res.SEEDS, Res.STICK, Res.WHEAT, Res.BREAD};
+		for (Res r : order) {
+			int keep = KEEP.getOrDefault(r, 0);
+			int kept = 0;
+			for (int i = 0; i < Inv.SIZE && Inv.freeSlots() < slots; i++) {
+				ItemStack st = Inv.get(i);
+				if (st.isEmpty() || !r.pred.test(st)) continue;
+				if (kept + st.getCount() <= keep) {
+					kept += st.getCount();
+					continue;
 				}
-				break;
+				Compat.throwStack(cid, Inv.menuSlot(b.p.inventoryMenu, i));
 			}
 		}
 	}
@@ -160,12 +159,15 @@ public final class StoreTask extends Task {
 	}
 
 	private BlockPos chest(Bot b) {
-		int n = 0;
+		BlockPos me = b.p.blockPosition();
+		BlockPos best = null;
 		for (Long l : b.state.chests) {
+			if (b.state.fullChests.contains(l)) continue;
 			BlockPos p = BlockPos.of(l);
-			if (!W.st(p).is(Blocks.CHEST)) continue;
-			if (n++ >= chestIdx) return p;
+			if (W.loaded(p) && !W.st(p).is(Blocks.CHEST)) continue;
+			if (best == null || p.distSqr(me) < best.distSqr(me)) best = p;
 		}
-		return null;
+		cur = best;
+		return best;
 	}
 }

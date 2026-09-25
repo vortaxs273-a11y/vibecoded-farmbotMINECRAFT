@@ -27,13 +27,16 @@ public final class FarmBotClient implements ClientModInitializer {
 
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
 			if (autoStartDelay > 0 && --autoStartDelay == 0 && client.player != null && !Bot.I.running) Bot.I.start();
+			Reconnect.tick(client);
 			Bot.I.onTick(client);
 		});
 
 		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
-			if (Config.I.autoStart) autoStartDelay = 100;
+			Reconnect.remember(client);
+			if (Config.I.autoStart || Reconnect.wasRunning) autoStartDelay = 100;
 		});
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+			Reconnect.wasRunning = Bot.I.running;
 			if (Bot.I.running) Bot.I.stop();
 		});
 

@@ -30,9 +30,11 @@ public final class Config {
 	public int proximityRadius = 6;
 	public int chatCooldownSeconds = 8;
 
-	/** Disconnect as a last resort when about to die. */
-	public boolean panicLogout = true;
-	public float panicHealth = 5f;
+	/** At or below this health it digs a bunker, seals itself in, eats and heals, then carries on. */
+	public float panicHealth = 6f;
+	/** Reconnect automatically after being kicked/disconnected from a server. */
+	public boolean autoReconnect = true;
+	public int reconnectSeconds = 15;
 	public int eatBelowHunger = 14;
 
 	/** Baritone legitMine: only mine ores it has actually seen (branch mines at legitMineY). No x-ray tunnels. */

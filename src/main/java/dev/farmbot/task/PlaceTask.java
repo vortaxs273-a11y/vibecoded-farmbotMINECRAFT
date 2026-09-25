@@ -12,8 +12,8 @@ import java.util.function.Consumer;
 
 /** Put one of our utility blocks (table, furnace, chest) at an exact home spot, clearing and levelling first. */
 public final class PlaceTask extends Task {
-	private final BlockPos pos;
-	private final Res item;
+	public final BlockPos pos;
+	public final Res item;
 	private final Block block;
 	private final Consumer<BlockPos> onDone;
 

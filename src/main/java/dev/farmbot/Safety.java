@@ -43,6 +43,7 @@ public final class Safety {
 				b.abortTask();
 				eatTicks = 0;
 				pickupWater = null;
+				bunker = null;
 			}
 			return true;
 		}
@@ -51,18 +52,6 @@ public final class Safety {
 		List<LivingEntity> hostiles = hostiles(b, 16);
 		LivingEntity nearest = hostiles.isEmpty() ? null : hostiles.get(0);
 		double nd = nearest == null ? 99 : nearest.distanceTo(p);
-
-		// --- last resort: log out rather than die ---
-		if (Config.I.panicLogout && !Config.I.infinite && p.getHealth() <= Config.I.panicHealth && p.hurtTime > 0
-			&& (nd < 10 || p.isInLava() || p.isOnFire() || Compat.fallDistance(p) > 6)) {
-			what = "PANIC LOGOUT";
-			FarmBotClient.LOG.warn("panic logout at {} hp", p.getHealth());
-			b.running = false;
-			Ctl.releaseAll(b.mc);
-			b.state.save();
-			Compat.disconnect("[FarmBot] panic logout at " + (int) p.getHealth() + " hp. farm farm farm </im_end/>");
-			return true;
-		}
 
 		// --- lava ---
 		if (p.isInLava()) {
@@ -144,6 +133,11 @@ public final class Safety {
 			}
 		}
 
+		// --- about to die: dig a bunker, seal it, heal, come back out ---
+		if (bunker != null || (p.getHealth() <= Config.I.panicHealth && (nd < 12 || p.hurtTime > 0) && !p.isInWater())) {
+			if (bunker(b, p, nd)) return true;
+		}
+
 		// --- creepers: leave ---
 		for (LivingEntity h : hostiles) {
 			if (h.getType() == EntityType.CREEPER && h.distanceTo(p) < 6) {
@@ -201,6 +195,93 @@ public final class Safety {
 
 		what = "";
 		return false;
+	}
+
+	// ------------------------------------------------------------------ bunker
+
+	private BlockPos bunker; // original feet position = where the ceiling goes
+	private int bunkerTicks;
+	private static final java.util.function.Predicate<ItemStack> FILL = s -> Res.COBBLE.pred.test(s) || Res.DIRT.pred.test(s);
+
+	/** Can we safely sink two blocks straight down from here? */
+	private static boolean bunkerable(BlockPos f) {
+		for (int dy = 1; dy <= 2; dy++) {
+			BlockPos d = f.below(dy);
+			var s = W.st(d);
+			if (W.passable(d) || !Guard.mayBreak(d, s) || s.getDestroySpeed(W.lvl(), d) > 5 || s.getDestroySpeed(W.lvl(), d) < 0) return false;
+			if (W.fallingAbove(d) && dy == 2) return false;
+			if (W.lavaNear(d)) return false;
+		}
+		if (!W.standable(f.below(3)) || W.lavaNear(f.below(3))) return false;
+		// walls around the hole must hold
+		for (net.minecraft.core.Direction d : net.minecraft.core.Direction.Plane.HORIZONTAL) {
+			if (!W.solid(f.below().relative(d)) || !W.solid(f.below(2).relative(d))) return false;
+		}
+		return true;
+	}
+
+	private boolean bunker(Bot b, LocalPlayer p, double nd) {
+		BlockPos f = BlockPos.containing(p.getX(), p.getY() + 0.2, p.getZ());
+		if (bunker == null) {
+			if (!p.onGround() || Inv.count(FILL) == 0 || !bunkerable(f)) {
+				// can't dig in here: get away and eat on the run
+				if (nd < 12) {
+					what = "low health: running";
+					runFrom(p, hostiles(b, 16).isEmpty() ? p.position() : hostiles(b, 16).get(0).position());
+					return true;
+				}
+				return false;
+			}
+			bunker = f;
+			bunkerTicks = 0;
+			FarmBotClient.LOG.info("[farmbot] low health ({}), digging in at {}", p.getHealth(), f);
+		}
+		bunkerTicks++;
+		BlockPos floor = bunker.below(2); // feet level once dug in
+		// 1. dig down
+		if (f.getY() > floor.getY()) {
+			what = "digging a bunker";
+			BlockPos under = f.below();
+			double hx = p.getX() - (f.getX() + 0.5), hz = p.getZ() - (f.getZ() + 0.5);
+			if (hx * hx + hz * hz > 0.04) {
+				Ctl.faceXZ(p, f.getX() + 0.5, f.getZ() + 0.5);
+				Ctl.fwd = true;
+				Ctl.sneak = true;
+			}
+			if (!W.passable(under)) b.breaker.tick(under);
+			if (bunkerTicks > 20 * 30) bunker = null; // couldn't dig, give up on it
+			return true;
+		}
+		// 2. seal the roof
+		if (W.passable(bunker) || W.st(bunker).canBeReplaced()) {
+			what = "sealing the bunker";
+			if (Act.place(bunker, FILL)) b.state.ours.add(bunker.asLong());
+			if (Inv.count(FILL) == 0) bunker = null;
+			return true;
+		}
+		// 3. heal
+		int food = p.getFoodData().getFoodLevel();
+		boolean safeOutside = hostiles(b, 8).isEmpty();
+		if ((p.getHealth() < 18 || !safeOutside) && bunkerTicks < 20 * 60 * 5) {
+			what = "healing in the bunker (" + (int) p.getHealth() + " hp)";
+			int slot = Inv.bestFood(20 - food);
+			if (food < 20 && slot >= 0) {
+				if (Inv.selectIndex(slot)) {
+					Ctl.look(p, p.getYRot(), -90f);
+					Ctl.use = true;
+				}
+			}
+			return true;
+		}
+		// 4. out
+		what = "leaving the bunker";
+		if (!W.passable(bunker)) {
+			b.breaker.tick(bunker);
+			return true;
+		}
+		b.state.ours.remove(bunker.asLong());
+		bunker = null;
+		return false; // Baritone will climb out on the next path
 	}
 
 	private void housekeeping(LocalPlayer p) {

@@ -53,6 +53,10 @@ public final class Brain {
 		FarmBotClient.LOG.info("[farmbot] task failed: {} ({})", t.name(), t.why);
 		if (k != null) cooldown.put(k, b.tick + (k.startsWith("mine:") || k.startsWith("hunt") ? 20 * 120 : 20 * 45));
 		if (t instanceof StoreTask && t.why.contains("no chest")) needChest = true;
+		if (t instanceof PlaceTask pt && pt.item == Res.CHEST) {
+			b.state.badSpots.add(pt.pos.asLong());
+			cooldown.remove(k); // try the next spot right away
+		}
 		if (t instanceof ScoutTask) cooldown.clear();
 	}
 
@@ -198,15 +202,15 @@ public final class Brain {
 			return make("cell:0,0", () -> new BuildCellTask(b, 0, 0));
 		}
 		if (b.state.chests.isEmpty() || needChest) {
-			int k = b.state.chests.size();
-			if (k < Farm.CHESTS.length) {
+			BlockPos spot = Farm.nextChestSpot();
+			if (spot == null && Farm.claimStoragePlot()) spot = Farm.nextChestSpot();
+			if (spot != null) {
 				blocked = false;
 				if (Inv.count(Res.CHEST) == 0) {
-					t = obtain(b, Res.CHEST, 1, 0);
+					t = obtain(b, Res.CHEST, 2, 0);
 					if (t != null) return t;
-					if (!blocked) return null;
 				} else {
-					BlockPos pos = Farm.homeSpot(Farm.CHESTS[k]);
+					BlockPos pos = spot;
 					return make("place:chest", () -> new PlaceTask(pos, Res.CHEST, Blocks.CHEST, p -> {
 						b.state.chests.add(p.asLong());
 						needChest = false;

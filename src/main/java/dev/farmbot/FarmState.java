@@ -16,7 +16,7 @@ import java.util.Set;
 
 /** Everything the bot must remember across deaths, disconnects and restarts. One file per server+dimension. */
 public final class FarmState {
-	public static final int NONE = 0, BUILT = 2, SKIPPED = 3;
+	public static final int NONE = 0, BUILT = 2, SKIPPED = 3, STORAGE = 4;
 
 	public boolean hasSite;
 	/** site was picked by infinite mode (guaranteed plains) */
@@ -24,6 +24,12 @@ public final class FarmState {
 	public int cx, cy, cz; // cy is the feet level of the farm surface; ground (farmland) is cy-1
 	public Map<String, Integer> cells = new HashMap<>();
 	public List<Long> chests = new ArrayList<>();
+	/** extra plots turned into chest yards once home storage filled up, in claim order ("i,j") */
+	public List<String> storageCells = new ArrayList<>();
+	/** chest spots we couldn't build on */
+	public Set<Long> badSpots = new HashSet<>();
+	/** chests we've filled to the brim (skipped when storing) */
+	public Set<Long> fullChests = new HashSet<>();
 	public Long table, furnace;
 	public boolean pool;
 	public Set<Long> ours = new HashSet<>();
@@ -49,6 +55,9 @@ public final class FarmState {
 		if (s.cells == null) s.cells = new HashMap<>();
 		if (s.chests == null) s.chests = new ArrayList<>();
 		if (s.ours == null) s.ours = new HashSet<>();
+		if (s.storageCells == null) s.storageCells = new ArrayList<>();
+		if (s.badSpots == null) s.badSpots = new HashSet<>();
+		if (s.fullChests == null) s.fullChests = new HashSet<>();
 		if (s.playerSightings == null) s.playerSightings = new ArrayList<>();
 		s.file = f;
 		return s;
@@ -77,6 +86,9 @@ public final class FarmState {
 		hasSite = false;
 		cells.clear();
 		chests.clear();
+		storageCells.clear();
+		badSpots.clear();
+		fullChests.clear();
 		table = furnace = null;
 		pool = false;
 		ours.clear();

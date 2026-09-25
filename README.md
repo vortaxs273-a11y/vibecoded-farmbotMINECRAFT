@@ -27,7 +27,8 @@ actually in view, through the vanilla breaking path, so it never breaks anything
    dirt, water source in the middle (hydrates the whole cell), till, plant, torches on the four corners. With the
    default 5 rings that's 11x11 cells, about 99x99 blocks and ~9,000 wheat.
 5. **Farms.** Harvests ripe wheat, replants, re-tills trampled soil, sweeps up every seed, bakes all the wheat
-   into bread, stores the bread in chests, expands whenever it has seeds. Pulls grass for seeds while waiting.
+   into bread, stores the bread in chests (and just builds more chests whenever they're full: first at home, then
+   it turns the nearest spare plot into a chest yard, 36 chests per plot, as many plots as it takes), expands whenever it has seeds. Pulls grass for seeds while waiting.
    Then does it again. There's no end state.
 
 ## Food: flint & steel cooking
@@ -52,7 +53,10 @@ The safety layer runs before every task, every tick:
 - **Eating**: eats the least wasteful food before hunger gets low, and eats to regenerate health
 - **Armor + shield**: equips itself automatically
 - **Pathing**: Baritone's, with parkour off, max 3-block drops without water and anti-cheat compatibility on
-- **Panic logout** (optional, on by default): disconnects if it's about to die anyway
+- **Bunker** instead of logging out: at 6 hp with danger around it digs two blocks down, seals the roof, eats and
+  heals to full, waits for the mobs to leave, then breaks out and carries on (if it can't dig in, it runs)
+- **Auto-reconnect**: kicked, timed out or the server restarted? It waits 15s (backing off up to 5 min if it keeps
+  getting kicked), logs back in and resumes farming
 
 ## Anti-grief
 
@@ -83,7 +87,7 @@ Replies are rate-limited (8s by default) so it doesn't get kicked for spam.
 | `/farmbot start` | take over and farm |
 | `/farmbot stop` | give you your hands back |
 | `/farmbot status` | what it's doing, farm location, cells built, wheat harvested, deaths |
-| `/farmbot infinite` | **AFK mode.** Finds a perfect untouched plains, builds a 8x8-chunk starter farm and keeps expanding (up to 30 rings, ~550x550 blocks) forever. Auto-starts on every join, never panic-logs out, respawns and walks home, dumps surplus when storage is full so it never stalls. `/farmbot infinite off` to leave. |
+| `/farmbot infinite` | **AFK mode.** Finds a perfect untouched plains, builds a 8x8-chunk starter farm and keeps expanding (up to 30 rings, ~550x550 blocks) forever. Auto-starts on every join, respawns and walks home, reconnects if kicked, builds chest yards forever. `/farmbot infinite off` to leave. |
 | `/farmbot rings <n>` | farm size: (2n+1)² cells of 9x9 |
 | `/farmbot autostart true\|false` | start farming automatically on every world join |
 | `/farmbot resetsite` | forget the farm and scout for new land |

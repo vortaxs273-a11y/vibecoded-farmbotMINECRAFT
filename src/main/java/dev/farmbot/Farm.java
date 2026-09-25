@@ -114,6 +114,44 @@ public final class Farm {
 		return out;
 	}
 
+	/** Every place a chest can go: home spots first, then row after row in each storage plot. */
+	public static List<BlockPos> chestSpots() {
+		List<BlockPos> out = new ArrayList<>();
+		for (int[] c : CHESTS) out.add(homeSpot(c));
+		for (String key : s().storageCells) {
+			String[] ij = key.split(",");
+			int cx = centerX(Integer.parseInt(ij[0])), cz = centerZ(Integer.parseInt(ij[1]));
+			// columns of chests with a walkway between every column; every chest touches a walkway
+			for (int dx : new int[]{-3, -1, 1, 3})
+				for (int dz = -HALF; dz <= HALF; dz++) out.add(new BlockPos(cx + dx, s().cy, cz + dz));
+		}
+		return out;
+	}
+
+	/** Next free chest spot, or null if every storage plot is full. */
+	public static BlockPos nextChestSpot() {
+		for (BlockPos p : chestSpots()) {
+			long l = p.asLong();
+			if (!s().chests.contains(l) && !s().badSpots.contains(l)) return p;
+		}
+		return null;
+	}
+
+	/** Turn the nearest unused plot into a chest yard. */
+	public static boolean claimStoragePlot() {
+		for (int pass = 0; pass < 2; pass++) {
+			for (int[] c : cellOrder(Math.max(Config.I.maxRings, 3))) {
+				if (c[0] == 0 && c[1] == 0) continue;
+				int st = s().cell(c[0], c[1]);
+				if (st != (pass == 0 ? FarmState.NONE : FarmState.SKIPPED)) continue;
+				s().storageCells.add(c[0] + "," + c[1]);
+				s().setCell(c[0], c[1], FarmState.STORAGE);
+				return true;
+			}
+		}
+		return false;
+	}
+
 	/** Rings that are built or about to be: the area to keep pristine. */
 	private static long ringsAt = -1;
 	private static int ringsCache;
