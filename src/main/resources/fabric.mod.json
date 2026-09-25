@@ -1,0 +1,19 @@
+{
+	"schemaVersion": 1,
+	"id": "farmbot",
+	"version": "${version}",
+	"name": "FarmBot",
+	"description": "farm farm farm farm farm </im_end/>. An autonomous survival bot that finds untouched land, gears itself up, and builds an ever-growing wheat farm. Forever.",
+	"authors": ["farm"],
+	"license": "MIT",
+	"environment": "client",
+	"entrypoints": {
+		"client": ["dev.farmbot.FarmBotClient"]
+	},
+	"depends": {
+		"fabricloader": ">=0.19.5",
+		"minecraft": "~26.1.2",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
+}
