@@ -76,7 +76,14 @@ public final class StoreTask extends Task {
 			case GO -> {
 				if (!needsStoring()) return S.OK;
 				BlockPos chest = chest(b);
-				if (chest == null) return Inv.freeSlots() > 0 ? S.OK : fail("no chest to store in");
+				if (chest == null) {
+					if (b.state.chests.size() >= dev.farmbot.Farm.CHESTS.length) {
+						// storage is maxed out; the farm must go on. surplus goes on the floor.
+						tossSurplus(b);
+						return S.OK;
+					}
+					return Inv.freeSlots() > 0 ? S.OK : fail("no chest to store in");
+				}
 				if (b.p.containerMenu instanceof ChestMenu) {
 					ph = Ph.DEPOSIT;
 					wait = 0;
@@ -126,6 +133,25 @@ public final class StoreTask extends Task {
 			}
 		}
 		return S.RUN;
+	}
+
+	private static void tossSurplus(Bot b) {
+		if (!Inv.noScreenMenu()) b.p.closeContainer();
+		Map<Res, Integer> keep = new EnumMap<>(KEEP);
+		int cid = b.p.inventoryMenu.containerId;
+		for (int i = 0; i < Inv.SIZE; i++) {
+			ItemStack st = Inv.get(i);
+			if (st.isEmpty()) continue;
+			for (Map.Entry<Res, Integer> e : keep.entrySet()) {
+				if (!e.getKey().pred.test(st)) continue;
+				if (e.getValue() >= st.getCount()) e.setValue(e.getValue() - st.getCount());
+				else {
+					Compat.throwStack(cid, Inv.menuSlot(b.p.inventoryMenu, i));
+					e.setValue(0);
+				}
+				break;
+			}
+		}
 	}
 
 	private boolean needsStoring() {

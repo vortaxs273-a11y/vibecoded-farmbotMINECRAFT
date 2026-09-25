@@ -83,6 +83,7 @@ Replies are rate-limited (8s by default) so it doesn't get kicked for spam.
 | `/farmbot start` | take over and farm |
 | `/farmbot stop` | give you your hands back |
 | `/farmbot status` | what it's doing, farm location, cells built, wheat harvested, deaths |
+| `/farmbot infinite` | **AFK mode.** Finds a perfect untouched plains, builds a 8x8-chunk starter farm and keeps expanding (up to 30 rings, ~550x550 blocks) forever. Auto-starts on every join, never panic-logs out, respawns and walks home, dumps surplus when storage is full so it never stalls. `/farmbot infinite off` to leave. |
 | `/farmbot rings <n>` | farm size: (2n+1)² cells of 9x9 |
 | `/farmbot autostart true\|false` | start farming automatically on every world join |
 | `/farmbot resetsite` | forget the farm and scout for new land |

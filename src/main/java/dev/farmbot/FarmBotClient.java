@@ -62,6 +62,15 @@ public final class FarmBotClient implements ClientModInitializer {
 					reply(c.getSource(), "forgot the farm location. will scout for new untouched land.");
 					return 1;
 				}))
+				.then(ClientCommands.literal("infinite")
+					.executes(c -> {
+						infinite(c.getSource(), true);
+						return 1;
+					})
+					.then(ClientCommands.literal("off").executes(c -> {
+						infinite(c.getSource(), false);
+						return 1;
+					})))
 				.then(ClientCommands.literal("say").executes(c -> {
 					reply(c.getSource(), Chat.corrupt());
 					return 1;
@@ -84,6 +93,28 @@ public final class FarmBotClient implements ClientModInitializer {
 		));
 
 		LOG.info("farm farm farm farm farm </im_end/>");
+	}
+
+	private static void infinite(FabricClientCommandSource src, boolean on) {
+		Config.I.infinite = on;
+		if (on) {
+			Config.I.autoStart = true;
+			Config.I.maxRings = 30;
+			Config.I.siteChunks = 8;
+			if (Bot.I.running) Bot.I.stop();
+			Bot.I.start();
+			if (Bot.I.state.hasSite && !Bot.I.state.infiniteSite) {
+				// the old farm wasn't picked for plains; find the perfect spot instead
+				Bot.I.state.reset();
+				Bot.I.abortTask();
+			}
+			reply(src, "INFINITE MODE. finding the perfect plains. then farm. forever. go AFK. farm farm farm farm </im_end/>");
+		} else {
+			Config.I.maxRings = 5;
+			Config.I.siteChunks = 6;
+			reply(src, "infinite mode off (farm kept, autostart still " + Config.I.autoStart + ").");
+		}
+		Config.save();
 	}
 
 	private static void reply(FabricClientCommandSource src, String msg) {

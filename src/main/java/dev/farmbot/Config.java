@@ -11,6 +11,8 @@ import java.nio.file.Path;
 public final class Config {
 	public static Config I = new Config();
 
+	/** /farmbot infinite: plains only, huge site, expand forever, never log out, auto-start on join. */
+	public boolean infinite = false;
 	/** Start farming automatically every time you join a world. */
 	public boolean autoStart = false;
 	/** Site size in chunks (square). 6 = 96x96 blocks of pure farm. */

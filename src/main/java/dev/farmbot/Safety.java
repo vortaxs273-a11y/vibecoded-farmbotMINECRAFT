@@ -53,7 +53,7 @@ public final class Safety {
 		double nd = nearest == null ? 99 : nearest.distanceTo(p);
 
 		// --- last resort: log out rather than die ---
-		if (Config.I.panicLogout && p.getHealth() <= Config.I.panicHealth && p.hurtTime > 0
+		if (Config.I.panicLogout && !Config.I.infinite && p.getHealth() <= Config.I.panicHealth && p.hurtTime > 0
 			&& (nd < 10 || p.isInLava() || p.isOnFire() || Compat.fallDistance(p) > 6)) {
 			what = "PANIC LOGOUT";
 			FarmBotClient.LOG.warn("panic logout at {} hp", p.getHealth());

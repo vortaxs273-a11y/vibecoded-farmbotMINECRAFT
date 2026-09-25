@@ -90,12 +90,18 @@ public final class Farm {
 	}
 
 	/** All cells within the ring limit, ordered by distance from home: the expansion order. */
+	private static int orderRing = -1;
+	private static List<int[]> orderCache;
+
 	public static List<int[]> cellOrder(int maxRing) {
+		if (maxRing == orderRing) return orderCache;
 		List<int[]> out = new ArrayList<>();
 		for (int i = -maxRing; i <= maxRing; i++)
 			for (int j = -maxRing; j <= maxRing; j++) out.add(new int[]{i, j});
 		out.sort(Comparator.comparingInt((int[] c) -> Math.max(Math.abs(c[0]), Math.abs(c[1])))
 			.thenComparingInt(c -> c[0] * c[0] + c[1] * c[1]));
+		orderRing = maxRing;
+		orderCache = out;
 		return out;
 	}
 
@@ -108,9 +114,26 @@ public final class Farm {
 		return out;
 	}
 
+	/** Rings that are built or about to be: the area to keep pristine. */
+	private static long ringsAt = -1;
+	private static int ringsCache;
+
+	public static int activeRings() {
+		if (ringsAt == Bot.I.tick) return ringsCache;
+		int max = 0;
+		for (java.util.Map.Entry<String, Integer> e : s().cells.entrySet()) {
+			if (e.getValue() != FarmState.BUILT) continue;
+			String[] ij = e.getKey().split(",");
+			max = Math.max(max, Math.max(Math.abs(Integer.parseInt(ij[0])), Math.abs(Integer.parseInt(ij[1]))));
+		}
+		ringsAt = Bot.I.tick;
+		ringsCache = Math.min(Config.I.maxRings, max + 2);
+		return ringsCache;
+	}
+
 	public static boolean inFarmArea(int x, int z, int margin) {
 		if (!s().hasSite) return false;
-		int r = (Config.I.maxRings * SIZE) + HALF + margin;
+		int r = (activeRings() * SIZE) + HALF + margin;
 		return Math.abs(x - s().cx) <= r && Math.abs(z - s().cz) <= r;
 	}
 }

@@ -7,6 +7,7 @@ import dev.farmbot.Guard;
 import dev.farmbot.W;
 import dev.farmbot.path.Goal;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.biome.Biomes;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
@@ -23,7 +24,7 @@ import java.util.Random;
  * nobody seen around. If nothing visible qualifies, it walks off in a new direction and looks again.
  */
 public final class ScoutTask extends Task {
-	record Info(boolean dirty, int[] heights, double water) {}
+	record Info(boolean dirty, int[] heights, double water, double plains) {}
 
 	private static final Map<Long, Info> CACHE = new HashMap<>();
 	private static String cacheKey = "";
@@ -77,6 +78,7 @@ public final class ScoutTask extends Task {
 				b.state.cy = site[1];
 				b.state.cz = site[2];
 				b.state.cells.clear();
+				b.state.infiniteSite = Config.I.infinite;
 				b.state.save();
 				Compat.localMessage("[FarmBot] found untouched land at " + site[0] + " " + site[1] + " " + site[2] + ". farm farm farm.");
 				return S.OK;
@@ -105,13 +107,15 @@ public final class ScoutTask extends Task {
 		LevelChunk ch = Compat.chunk(b.lvl, cx, cz);
 		if (ch == null) return null;
 		int[] hs = new int[16];
-		int water = 0, n = 0;
+		int water = 0, n = 0, plains = 0;
 		int minH = Integer.MAX_VALUE;
 		for (int lx = 1; lx < 16; lx += 4)
 			for (int lz = 1; lz < 16; lz += 4) {
 				int x = (cx << 4) + lx, z = (cz << 4) + lz;
 				int gy = W.groundFeetY(x, z);
 				hs[n++] = gy;
+				var biome = b.lvl.getBiome(new BlockPos(x, gy, z));
+				if (biome.is(Biomes.PLAINS) || biome.is(Biomes.SUNFLOWER_PLAINS)) plains++;
 				minH = Math.min(minH, gy);
 				if (W.isWater(W.st(x, gy - 1, z)) || W.isWater(W.st(x, gy, z))) water++;
 			}
@@ -134,7 +138,7 @@ public final class ScoutTask extends Task {
 						}
 					}
 		}
-		return new Info(dirty, hs, water / 16.0);
+		return new Info(dirty, hs, water / 16.0, plains / 16.0);
 	}
 
 	private boolean nearSighting(Bot b, int x, int z) {
@@ -165,14 +169,17 @@ public final class ScoutTask extends Task {
 					}
 				if (!ok) continue;
 				List<Integer> all = new ArrayList<>();
-				double water = 0;
+				double water = 0, plains = 0;
 				for (int x = x0; x < x0 + K; x++)
 					for (int z = z0; z < z0 + K; z++) {
 						Info i = CACHE.get(key(x, z));
 						for (int h : i.heights) all.add(h);
 						water += i.water;
+						plains += i.plains;
 					}
 				water /= (K * K);
+				plains /= (K * K);
+				if (Config.I.infinite && plains < 0.97) continue;
 				double mean = all.stream().mapToInt(Integer::intValue).average().orElse(0);
 				double var = all.stream().mapToDouble(h -> (h - mean) * (h - mean)).average().orElse(0);
 				double std = Math.sqrt(var);
@@ -193,6 +200,17 @@ public final class ScoutTask extends Task {
 	}
 
 	private void pickDirection(Bot b) {
+		if (Double.isNaN(dirAngle) && Config.I.infinite) {
+			// infinite mode: head for the biggest patch of plains we can see
+			double sx = 0, sz = 0;
+			int pcx = b.p.getBlockX() >> 4, pcz = b.p.getBlockZ() >> 4;
+			for (Map.Entry<Long, Info> e : CACHE.entrySet()) {
+				if (e.getValue().plains < 0.9 || e.getValue().dirty) continue;
+				sx += (int) (e.getKey() >> 32) - pcx;
+				sz += (int) (long) e.getKey() - pcz;
+			}
+			if (sx != 0 || sz != 0) dirAngle = Math.atan2(sz, sx);
+		}
 		if (Double.isNaN(dirAngle)) {
 			// head away from the mess we can see
 			double sx = 0, sz = 0;

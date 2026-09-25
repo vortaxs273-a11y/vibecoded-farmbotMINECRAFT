@@ -19,6 +19,8 @@ public final class FarmState {
 	public static final int NONE = 0, BUILT = 2, SKIPPED = 3;
 
 	public boolean hasSite;
+	/** site was picked by infinite mode (guaranteed plains) */
+	public boolean infiniteSite;
 	public int cx, cy, cz; // cy is the feet level of the farm surface; ground (farmland) is cy-1
 	public Map<String, Integer> cells = new HashMap<>();
 	public List<Long> chests = new ArrayList<>();
