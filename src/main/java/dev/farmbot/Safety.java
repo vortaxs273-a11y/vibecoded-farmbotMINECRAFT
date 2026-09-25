@@ -141,7 +141,8 @@ public final class Safety {
 		}
 
 		// --- about to die: dig a bunker, seal it, heal, come back out ---
-		boolean dark = b.lvl.isDarkOutside();
+		// night only matters on the surface; underground it's always dark, so keep mining
+		boolean dark = b.lvl.isDarkOutside() && b.lvl.canSeeSky(BlockPos.containing(p.getEyePosition()));
 		boolean onFarm = b.state.hasSite && Farm.inBuiltCell(p.getBlockX(), p.getBlockZ());
 		if (bunker != null || (p.getHealth() <= Config.I.panicHealth && (nd < 12 || p.hurtTime > 0) && !p.isInWater())
 			|| (dark && !onFarm && !p.isInWater() && p.onGround())) {
@@ -279,7 +280,7 @@ public final class Safety {
 		// 3. heal
 		int food = p.getFoodData().getFoodLevel();
 		boolean safeOutside = hostiles(b, 8).isEmpty();
-		boolean stillNight = b.lvl.isDarkOutside();
+		boolean stillNight = b.lvl.isDarkOutside() && bunker != null && b.lvl.canSeeSky(bunker.above());
 		boolean canHeal = food >= 18 || Inv.foodValue() > 0; // natural regen needs a full-ish belly
 		if (((p.getHealth() < 18 && canHeal) || !safeOutside || stillNight) && bunkerTicks < 20 * 60 * 15) {
 			what = stillNight ? "sleeping in the bunker until morning" : "healing in the bunker (" + (int) p.getHealth() + " hp)";
